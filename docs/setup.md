@@ -124,8 +124,24 @@ The first run takes longest — subsequent runs are incremental (rclone only tra
 To test the configuration without writing anything:
 
 ```bash
-GITPRESERVER_DRY_RUN=true ./run-backup.sh
+./run-backup.sh --dry-run
 ```
+
+### Local-only backups (no rclone)
+
+If you'd rather skip the rclone setup entirely and write backups to a NAS share, external disk, or any other host path, pass the destination as the first argument and add `--no-sync`:
+
+```bash
+# One-off backup to an external disk
+./run-backup.sh /Volumes/Backup/github --no-sync
+
+# Backup to a mounted NAS share
+./run-backup.sh /mnt/nas/github --no-sync
+```
+
+The destination directory is created if it doesn't exist. Retention pruning still runs (so `GITPRESERVER_RETENTION_DAYS` is honored), but no rclone remote is contacted and `rclone.conf` does not need to exist.
+
+`run-backup.sh --help` lists every option.
 
 ---
 
@@ -135,13 +151,17 @@ GITPRESERVER_DRY_RUN=true ./run-backup.sh
 crontab -e
 ```
 
-Add the following line, adjusting the path if you installed to a different location:
+Add a line for your preferred schedule. Adjust the install path if you cloned somewhere other than `/opt/gitpreserver`.
 
 ```
+# Full run using .env settings (rclone + local)
 0 2 * * 0  cd /opt/gitpreserver && ./run-backup.sh >> /var/log/gitpreserver.log 2>&1
+
+# Local-only backup to a NAS share, no rclone
+0 2 * * 0  /opt/gitpreserver/run-backup.sh /mnt/nas/github --no-sync >> /var/log/gitpreserver.log 2>&1
 ```
 
-This runs every Sunday at 2 AM. Adjust the schedule as needed — see `cron/crontab.example` for alternatives.
+See `cron/crontab.example` for more schedules and patterns.
 
 ---
 

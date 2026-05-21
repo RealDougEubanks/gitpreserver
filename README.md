@@ -73,10 +73,14 @@ echo "PGID=$(id -g)" >> .env
 ### 3. Run a backup
 
 ```bash
-./run-backup.sh
+./run-backup.sh                                  # full run using .env
+./run-backup.sh /mnt/backup/github --no-sync     # local-only one-off
+./run-backup.sh --dry-run                        # validate config, write nothing
 ```
 
-This mirror-clones your repos, exports metadata, and syncs to your configured remote. Backups land in `./backups/YYYY-MM-DD/`.
+`./run-backup.sh` mirror-clones your repos, exports metadata, and syncs to your configured remote. Backups land in `./backups/YYYY-MM-DD/` by default, or in the path you pass as the first argument.
+
+Pass `--no-sync` to skip rclone entirely — useful for backing up to a NAS share, external disk, or any path on the host without configuring a remote.
 
 ### 4. Schedule it
 

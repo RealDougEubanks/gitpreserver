@@ -1,10 +1,21 @@
 #!/usr/bin/env bash
 #
-# GitPreserver — single-entrypoint wrapper for cron.
+# GitPreserver — single-entrypoint wrapper for cron and ad-hoc runs.
 #
-# Runs the three-stage backup pipeline (mirror -> metadata -> sync) under a
+# Usage:
+#   ./run-backup.sh                       # use .env defaults
+#   ./run-backup.sh /path/to/backups      # override host backup directory
+#   ./run-backup.sh /path/... --no-sync   # local backup only, skip rclone
+#   ./run-backup.sh --dry-run             # validate config without writing
+#   ./run-backup.sh --help
+#
+# All options can be combined. Positional DEST_PATH overrides
+# GITPRESERVER_HOST_BACKUP_DIR for this run only and is created if it
+# doesn't exist.
+#
+# Runs the three-stage pipeline (mirror -> metadata -> sync) under a
 # flock so overlapping schedules cannot corrupt a snapshot in progress.
-# Exits non-zero if any stage fails; cron should capture stderr/stdout.
+# Exits non-zero if any stage fails.
 
 set -euo pipefail
 
@@ -12,21 +23,135 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"
 
 LOCK_FILE="${GITPRESERVER_LOCK_FILE:-${SCRIPT_DIR}/.gitpreserver.lock}"
-COMPOSE=(docker compose)
 
 log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
+usage() {
+    cat <<'EOF'
+Usage: run-backup.sh [DEST_PATH] [OPTIONS]
+
+Runs the GitPreserver backup pipeline: mirror -> metadata -> sync.
+
+Arguments:
+  DEST_PATH         Host directory to write backups to. Overrides
+                    GITPRESERVER_HOST_BACKUP_DIR for this run only.
+                    Created if it does not exist.
+
+Options:
+  --no-sync         Skip the rclone sync stage. Use for local-only
+                    backups to a NAS, external disk, or any host path.
+  --dry-run         Show what would happen without writing repos or
+                    pushing to a remote. Implies GITPRESERVER_DRY_RUN=true.
+  -h, --help        Show this help and exit.
+
+Examples:
+  # Default: read everything from .env
+  ./run-backup.sh
+
+  # One-off local backup to an external disk
+  ./run-backup.sh /Volumes/Backup/github --no-sync
+
+  # Cron: weekly local backup to a NAS mount, no rclone
+  0 2 * * 0 /opt/gitpreserver/run-backup.sh /mnt/nas/github --no-sync
+EOF
+}
+
+DEST_PATH=""
+NO_SYNC=false
+CLI_DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --no-sync)
+            NO_SYNC=true
+            shift
+            ;;
+        --dry-run)
+            CLI_DRY_RUN=true
+            shift
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            log "ERROR: unknown option '$1'. Try --help."
+            exit 2
+            ;;
+        *)
+            if [[ -n "${DEST_PATH}" ]]; then
+                log "ERROR: more than one destination path given ('${DEST_PATH}' and '$1')."
+                exit 2
+            fi
+            DEST_PATH="$1"
+            shift
+            ;;
+    esac
+done
+
+if [[ -n "${DEST_PATH}" ]]; then
+    # Resolve to an absolute path so docker compose doesn't bind-mount
+    # something relative to compose's cwd (which is SCRIPT_DIR here, but
+    # being explicit avoids surprises if the user runs from elsewhere).
+    mkdir -p "${DEST_PATH}"
+    DEST_PATH="$(cd "${DEST_PATH}" && pwd)"
+    export GITPRESERVER_HOST_BACKUP_DIR="${DEST_PATH}"
+    log "Backup destination: ${DEST_PATH}"
+fi
+
+if [[ "${CLI_DRY_RUN}" == "true" ]]; then
+    export GITPRESERVER_DRY_RUN=true
+fi
+
+# Build a list of `-e KEY=VALUE` pairs that apply to every stage. Storing
+# them as a newline-delimited string avoids bash 3.2's well-known empty-array
+# behavior under `set -u`.
+shared_env=""
+append_env() { shared_env+="$1"$'\n'; }
+
+if [[ "${CLI_DRY_RUN}" == "true" ]]; then
+    append_env "-e"
+    append_env "GITPRESERVER_DRY_RUN=true"
+fi
+
+# Read shared_env into an args array on use (works fine when empty under -u).
+compose_run_args() {
+    local args=()
+    while IFS= read -r line; do
+        [[ -n "${line}" ]] && args+=("${line}")
+    done <<< "${shared_env}"
+    docker compose run --rm "${args[@]+"${args[@]}"}" "$@"
+}
+
 run_pipeline() {
     log "Starting backup run (pid $$)"
-    "${COMPOSE[@]}" run --rm mirror
-    "${COMPOSE[@]}" run --rm metadata
-    "${COMPOSE[@]}" run --rm sync
+    compose_run_args mirror
+    compose_run_args metadata
+
+    if [[ "${NO_SYNC}" == "true" ]]; then
+        # Skip the sync service entirely: it bind-mounts rclone.conf, which
+        # the user may not have configured. Run sync.sh under the mirror
+        # service (same image, no rclone.conf mount) with an empty remote
+        # so only the retention-prune step executes.
+        log "Skipping rclone sync (--no-sync); running retention prune only."
+        compose_run_args \
+            -e GITPRESERVER_RCLONE_REMOTE= \
+            --entrypoint sync.sh \
+            mirror
+    else
+        compose_run_args sync
+    fi
+
     log "Backup run complete"
 }
 
-# Re-exec under flock unless we already hold the lock. -n exits immediately if
-# another run is in progress; -E 75 (EX_TEMPFAIL) signals "try again later" to
-# cron mail handlers without flagging a hard error.
+# Re-exec under flock unless we already hold the lock. -n exits immediately
+# if another run is in progress; -E 75 (EX_TEMPFAIL) signals "try again
+# later" to cron mail handlers without flagging a hard error.
 if [[ "${GITPRESERVER_LOCKED:-}" != "1" ]]; then
     if ! command -v flock >/dev/null 2>&1; then
         log "WARNING: flock not found on PATH; running without overlap protection."

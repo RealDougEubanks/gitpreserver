@@ -70,6 +70,17 @@ Each entry uses the format:
 
 ---
 
+## `--no-sync` runs retention via the `mirror` service, not `sync`
+
+**Assumption:** When the user passes `--no-sync`, the wrapper invokes `docker compose run --rm --entrypoint sync.sh mirror` to run retention pruning, instead of starting the `sync` service. This deliberately bypasses tini as PID 1 inside the container.
+
+**Why:** The `sync` service in `docker-compose.yml` bind-mounts `rclone.conf` read-only. A user running a local-only backup may not have configured rclone at all, so requiring that file to exist would break the use case. The `mirror` service shares the same image but has no rclone.conf mount. Running `sync.sh` under it with `GITPRESERVER_RCLONE_REMOTE=` exercises only the retention-prune path, which is a short-lived synchronous operation that doesn't need tini's reaping or signal-forwarding behavior.
+
+**Recorded by:** Claude (feature/phase1-mvp)
+**Date:** 2026-05-21
+
+---
+
 ## All log timestamps are UTC
 
 **Assumption:** Every log line emitted by GitPreserver scripts uses `date -u +%Y-%m-%dT%H:%M:%SZ`.
