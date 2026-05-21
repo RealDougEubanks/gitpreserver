@@ -1,0 +1,21 @@
+# GitPreserver crontab entry
+#
+# Add to your crontab with: crontab -e
+# Or drop in /etc/cron.d/gitpreserver (requires the SHELL and PATH lines).
+#
+# Adjust the path to match where you cloned GitPreserver.
+# Log rotation for /var/log/gitpreserver.log: see docs/setup.md.
+
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Run every Sunday at 2:00 AM
+0 2 * * 0  cd /opt/gitpreserver && ./run-backup.sh >> /var/log/gitpreserver.log 2>&1
+
+# Alternative schedules — uncomment one and remove the line above:
+
+# Daily at 2:00 AM
+# 0 2 * * *  cd /opt/gitpreserver && ./run-backup.sh >> /var/log/gitpreserver.log 2>&1
+
+# Every 12 hours
+# 0 */12 * * *  cd /opt/gitpreserver && ./run-backup.sh >> /var/log/gitpreserver.log 2>&1

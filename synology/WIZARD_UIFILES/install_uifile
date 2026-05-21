@@ -1,0 +1,108 @@
+[
+  {
+    "step_title": "Git Host",
+    "items": [
+      {
+        "type": "singleselect",
+        "desc": "Which git hosting service do you want to back up?",
+        "subitems": [
+          {
+            "key": "pkgwizard_host_type",
+            "displayText": "GitHub",
+            "defaultValue": "github"
+          },
+          {
+            "key": "pkgwizard_host_type",
+            "displayText": "Bitbucket",
+            "defaultValue": "bitbucket"
+          },
+          {
+            "key": "pkgwizard_host_type",
+            "displayText": "GitLab",
+            "defaultValue": "gitlab"
+          },
+          {
+            "key": "pkgwizard_host_type",
+            "displayText": "Gitea / Self-hosted",
+            "defaultValue": "gitea"
+          }
+        ]
+      },
+      {
+        "type": "textfield",
+        "desc": "Username or organization name to back up",
+        "subitems": [
+          {
+            "key": "pkgwizard_username",
+            "desc": "Username or org",
+            "defaultValue": "",
+            "emptyText": "e.g. myusername"
+          }
+        ]
+      },
+      {
+        "type": "password",
+        "desc": "Personal Access Token (requires repo and read:user scopes on GitHub)",
+        "subitems": [
+          {
+            "key": "pkgwizard_token",
+            "desc": "Token",
+            "defaultValue": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "step_title": "Backup Location",
+    "items": [
+      {
+        "type": "textfield",
+        "desc": "Local path on the NAS where backups will be stored",
+        "subitems": [
+          {
+            "key": "pkgwizard_backup_dir",
+            "desc": "Backup path",
+            "defaultValue": "/volume1/gitpreserver-backups"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "step_title": "Schedule",
+    "items": [
+      {
+        "type": "singleselect",
+        "desc": "How often should GitPreserver run?",
+        "subitems": [
+          {
+            "key": "pkgwizard_schedule",
+            "displayText": "Weekly (Sunday at 2 AM)",
+            "defaultValue": "0 2 * * 0"
+          },
+          {
+            "key": "pkgwizard_schedule",
+            "displayText": "Daily at 2 AM",
+            "defaultValue": "0 2 * * *"
+          },
+          {
+            "key": "pkgwizard_schedule",
+            "displayText": "Manual only",
+            "defaultValue": ""
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "step_title": "Summary",
+    "items": [
+      {
+        "type": "textfield",
+        "desc": "GitPreserver is ready to install. After installation, configure remote sync and encryption in the .env file at /var/packages/gitpreserver/target/.env. See the documentation at https://gitpreserver.com for details.",
+        "subitems": []
+      }
+    ]
+  }
+]

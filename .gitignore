@@ -1,0 +1,35 @@
+# Secrets and local config — never commit these
+.env
+*.env
+.env.*
+!.env.example
+rclone.conf
+rclone/*.conf
+!rclone/*.conf.example
+
+# Local backup snapshots
+backups/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor artifacts
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.iml
+
+# Logs
+*.log
+logs/
+
+# Synology build artifacts
+synology/*.spk
+synology/package.tgz
+
+# unRAID build artifacts
+unraid/*.zip

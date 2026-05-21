@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>GitPreserver</Name>
+  <Repository>dougeubanks/gitpreserver</Repository>
+  <Registry>https://hub.docker.com/r/dougeubanks/gitpreserver</Registry>
+  <Network>bridge</Network>
+  <Privileged>false</Privileged>
+  <Support>https://forums.unraid.net/topic/gitpreserver</Support>
+  <Project>https://github.com/dougeubanks/gitpreserver</Project>
+  <Overview>
+    A life preserver for your git repositories. Mirror-clones all repos with full branch and tag
+    history, exports issues/PRs/releases as JSON, and syncs encrypted backups to Backblaze B2,
+    AWS S3, Google Drive, OneDrive, MEGA, SMB, or any rclone-supported destination.
+    Runs on a cron schedule — no persistent daemon required.
+  </Overview>
+  <Category>Backup: Tools:</Category>
+  <Icon>https://raw.githubusercontent.com/dougeubanks/gitpreserver/main/assets/icon.png</Icon>
+  <ExtraParams></ExtraParams>
+  <DateInstalled></DateInstalled>
+
+  <!-- Required -->
+  <Config Name="Personal Access Token" Target="GITPRESERVER_TOKEN" Default=""
+    Mode="" Description="GitHub/GitLab/Bitbucket Personal Access Token. GitHub requires repo and read:user scopes."
+    Type="Variable" Display="always" Required="true" Mask="true"/>
+
+  <Config Name="Username" Target="GITPRESERVER_USERNAME" Default=""
+    Mode="" Description="GitHub username or organization name to back up."
+    Type="Variable" Display="always" Required="true" Mask="false"/>
+
+  <Config Name="Host Type" Target="GITPRESERVER_HOST_TYPE" Default="github"
+    Mode="" Description="Git host: github | bitbucket | gitlab | gitea"
+    Type="Variable" Display="always" Required="true" Mask="false"/>
+
+  <Config Name="Backup Path" Target="/backups" Default="/mnt/user/appdata/gitpreserver"
+    Mode="rw" Description="Host path where backup snapshots are stored."
+    Type="Path" Display="always" Required="true" Mask="false"/>
+
+  <!-- Remote sync -->
+  <Config Name="rclone Remote" Target="GITPRESERVER_RCLONE_REMOTE" Default=""
+    Mode="" Description="rclone remote name (e.g. b2-remote). Leave blank for local-only backup."
+    Type="Variable" Display="always" Required="false" Mask="false"/>
+
+  <Config Name="rclone Path" Target="GITPRESERVER_RCLONE_PATH" Default="gitpreserver-backups"
+    Mode="" Description="Path or bucket on the remote to sync into."
+    Type="Variable" Display="always" Required="false" Mask="false"/>
+
+  <Config Name="rclone Config" Target="/root/.config/rclone/rclone.conf" Default="/mnt/user/appdata/gitpreserver/rclone.conf"
+    Mode="ro" Description="Host path to your rclone.conf file."
+    Type="Path" Display="always" Required="false" Mask="false"/>
+
+  <!-- Encryption -->
+  <Config Name="Enable Encryption" Target="GITPRESERVER_ENCRYPT" Default="false"
+    Mode="" Description="Set to true to encrypt backups via rclone crypt. Requires GITPRESERVER_CRYPT_REMOTE."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="Crypt Remote" Target="GITPRESERVER_CRYPT_REMOTE" Default=""
+    Mode="" Description="rclone crypt remote name (required if encryption is enabled)."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- Retention and scheduling -->
+  <Config Name="Retention Days" Target="GITPRESERVER_RETENTION_DAYS" Default="30"
+    Mode="" Description="Days to keep local snapshots. Set to 0 to keep forever."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="Schedule" Target="GITPRESERVER_SCHEDULE" Default="0 2 * * 0"
+    Mode="" Description="Cron expression for backup schedule (default: Sundays at 2 AM)."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- Advanced -->
+  <Config Name="Log Level" Target="GITPRESERVER_LOG_LEVEL" Default="info"
+    Mode="" Description="Log verbosity: debug | info | warn | error"
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="Dry Run" Target="GITPRESERVER_DRY_RUN" Default="false"
+    Mode="" Description="Set to true to test without writing or syncing anything."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+</Container>

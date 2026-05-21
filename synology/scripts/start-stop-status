@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# DSM service lifecycle script for GitPreserver.
+# GitPreserver is not a persistent daemon — it runs as a scheduled task.
+# This script manages the Task Scheduler entry created at post-install.
+
+TASK_NAME="GitPreserver Backup"
+TASK_SCRIPT="/var/packages/gitpreserver/target/run-backup.sh"
+
+case "$1" in
+    start)
+        echo "GitPreserver is managed by Task Scheduler. Use DSM → Control Panel → Task Scheduler to run manually."
+        exit 0
+        ;;
+    stop)
+        exit 0
+        ;;
+    status)
+        if /usr/syno/bin/synotaskd --list 2>/dev/null | grep -qF "${TASK_NAME}"; then
+            echo "GitPreserver scheduled task is registered."
+            exit 0
+        else
+            echo "GitPreserver scheduled task is not registered."
+            exit 1
+        fi
+        ;;
+esac

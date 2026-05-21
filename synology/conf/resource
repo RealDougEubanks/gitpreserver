@@ -1,0 +1,12 @@
+{
+  "usr-local-linker": {
+    "link": {
+      "etc": [
+        {
+          "src": "/var/packages/gitpreserver/etc",
+          "dst": "gitpreserver"
+        }
+      ]
+    }
+  }
+}

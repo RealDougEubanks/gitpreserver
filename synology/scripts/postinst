@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Post-install setup for GitPreserver DSM package.
+# Reads wizard values written to /tmp/gitpreserver_wizard_* by the install wizard.
+
+PKG_DIR="/var/packages/gitpreserver/target"
+ENV_FILE="${PKG_DIR}/.env"
+
+load_wizard_value() {
+    local key="$1"
+    local file="/tmp/gitpreserver_wizard_${key}"
+    [[ -f "${file}" ]] && cat "${file}" || echo ""
+}
+
+# Write .env from wizard values
+cat > "${ENV_FILE}" <<EOF
+GITPRESERVER_TOKEN=$(load_wizard_value token)
+GITPRESERVER_USERNAME=$(load_wizard_value username)
+GITPRESERVER_HOST_TYPE=$(load_wizard_value host_type)
+GITPRESERVER_BACKUP_DIR=$(load_wizard_value backup_dir)
+GITPRESERVER_SCHEDULE=$(load_wizard_value schedule)
+GITPRESERVER_LOG_LEVEL=info
+GITPRESERVER_DRY_RUN=false
+GITPRESERVER_ENCRYPT=false
+GITPRESERVER_RETENTION_DAYS=30
+GITPRESERVER_RCLONE_REMOTE=
+GITPRESERVER_RCLONE_PATH=gitpreserver-backups
+EOF
+
+chmod 600 "${ENV_FILE}"
+
+# Pull the Docker image
+docker pull dougeubanks/gitpreserver:latest
+
+# Register the scheduled task in Task Scheduler
+# (Actual DSM Task Scheduler API calls go here — implementation depends on DSM version)
+echo "GitPreserver installed. Configure your schedule in DSM → Control Panel → Task Scheduler."
+
+# Clean up wizard temp files
+rm -f /tmp/gitpreserver_wizard_*
+
+exit 0

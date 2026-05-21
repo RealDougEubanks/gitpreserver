@@ -1,0 +1,38 @@
+services:
+
+  mirror:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ${GITPRESERVER_BACKUP_DIR:-./backups}:/backups
+    env_file: .env
+    command: ["mirror.sh"]
+    restart: "no"
+
+  metadata:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ${GITPRESERVER_BACKUP_DIR:-./backups}:/backups
+    env_file: .env
+    command: ["metadata.sh"]
+    restart: "no"
+    depends_on:
+      mirror:
+        condition: service_completed_successfully
+
+  sync:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    volumes:
+      - ${GITPRESERVER_BACKUP_DIR:-./backups}:/backups
+      - ${GITPRESERVER_RCLONE_CONFIG:-./rclone/rclone.conf}:/root/.config/rclone/rclone.conf:ro
+    env_file: .env
+    command: ["sync.sh"]
+    restart: "no"
+    depends_on:
+      metadata:
+        condition: service_completed_successfully

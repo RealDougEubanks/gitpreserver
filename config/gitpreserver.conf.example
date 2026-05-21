@@ -1,0 +1,48 @@
+# gitpreserver.conf — optional config file
+#
+# This is an optional alternative to .env. Use it when managing multiple
+# profiles or when env vars are inconvenient (e.g. running scripts directly
+# rather than through Docker).
+#
+# Keys are lowercase, without the GITPRESERVER_ prefix.
+# Environment variables always take precedence over values here.
+#
+# Config file search order (first found wins):
+#   1. $GITPRESERVER_CONFIG (explicit override)
+#   2. ./gitpreserver.conf  (current directory)
+#   3. ~/.config/gitpreserver/gitpreserver.conf
+#   4. /etc/gitpreserver/gitpreserver.conf
+#
+# A missing config file is not an error.
+
+[gitpreserver]
+
+# Git host credentials
+token           =
+username        =
+host_type       = github
+host_url        =
+
+# Local storage
+backup_dir      = /backups
+retention_days  = 30
+
+# Remote sync
+rclone_remote   =
+rclone_path     = gitpreserver-backups
+rclone_config   =
+rclone_transfers = 4
+
+# Encryption
+encrypt         = false
+crypt_remote    =
+crypt_pass      =
+crypt_pass2     =
+crypt_keyfile   =
+
+# Schedule
+schedule        = 0 2 * * 0
+
+# Advanced
+log_level       = info
+dry_run         = false

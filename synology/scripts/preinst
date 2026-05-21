@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Pre-install checks for GitPreserver DSM package.
+
+# Verify Docker is installed
+if ! /usr/syno/bin/synopkg is_onoff Docker &>/dev/null; then
+    echo "Docker is required but is not installed. Install Docker from Package Center and try again."
+    exit 1
+fi
+
+# Verify Docker is running
+if ! docker info &>/dev/null; then
+    echo "Docker is installed but not running. Start Docker from Package Center and try again."
+    exit 1
+fi
+
+exit 0

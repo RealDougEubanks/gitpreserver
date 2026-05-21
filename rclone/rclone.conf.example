@@ -1,0 +1,130 @@
+# rclone.conf.example — annotated remote templates for GitPreserver
+#
+# Copy this file to rclone/rclone.conf and fill in your credentials.
+# rclone.conf is in .gitignore — never commit it.
+#
+# Set GITPRESERVER_RCLONE_REMOTE to the name of the remote you want to use.
+# If encryption is enabled, also configure a [gitpreserver-crypt] remote below.
+#
+# Full rclone docs: https://rclone.org/docs/
+
+# ============================================================
+# Backblaze B2 (recommended default)
+# ============================================================
+# 1. Log in to backblaze.com → App Keys → Add a New Application Key
+# 2. Set allowed buckets or leave blank for all.
+# 3. Copy the keyID and applicationKey below.
+# 4. Set GITPRESERVER_RCLONE_REMOTE=b2-remote
+
+[b2-remote]
+type = b2
+account = YOUR_B2_ACCOUNT_ID
+key = YOUR_B2_APPLICATION_KEY
+hard_delete = false
+
+# ============================================================
+# AWS S3 (or any S3-compatible service)
+# ============================================================
+# Works with AWS S3, Cloudflare R2, Wasabi, MinIO, and others.
+# For Cloudflare R2, set endpoint = https://<account>.r2.cloudflarestorage.com
+# For Wasabi,         set endpoint = https://s3.wasabisys.com
+
+[s3-remote]
+type = s3
+provider = AWS
+access_key_id = YOUR_AWS_ACCESS_KEY_ID
+secret_access_key = YOUR_AWS_SECRET_ACCESS_KEY
+region = us-east-1
+# endpoint =    # uncomment and set for non-AWS S3-compatible services
+
+# ============================================================
+# Google Drive
+# ============================================================
+# Run: rclone config
+# Select "n" for new remote, name it "gdrive", type "drive".
+# Follow the OAuth flow in your browser.
+# Then paste the generated config block here.
+
+[gdrive]
+type = drive
+client_id =
+client_secret =
+scope = drive
+token =
+team_drive =
+
+# ============================================================
+# Microsoft OneDrive
+# ============================================================
+# Run: rclone config → new remote → name "onedrive" → type "onedrive"
+# Follow the OAuth flow, then paste the generated block here.
+
+[onedrive]
+type = onedrive
+client_id =
+client_secret =
+token =
+drive_id =
+drive_type = personal
+
+# ============================================================
+# MEGA
+# ============================================================
+
+[mega]
+type = mega
+user = your@email.com
+pass = YOUR_RCLONE_OBSCURED_PASSWORD
+# Generate obscured password: rclone obscure yourpassword
+
+# ============================================================
+# SMB / CIFS (NAS share, Windows file server)
+# ============================================================
+
+[smb-nas]
+type = smb
+host = 192.168.1.10
+user = your_smb_username
+pass = YOUR_RCLONE_OBSCURED_PASSWORD
+domain =
+port = 445
+
+# ============================================================
+# Local filesystem (useful for NAS users who manage their own offsite)
+# ============================================================
+
+[local]
+type = local
+nounc = true
+
+# ============================================================
+# SFTP
+# ============================================================
+
+[sftp-remote]
+type = sftp
+host = your.server.example.com
+user = your_ssh_username
+port = 22
+# key_file = /root/.ssh/id_rsa   # mount a key into the container
+# pass =                         # or use password (rclone obscure)
+
+# ============================================================
+# rclone crypt (encryption layer — wraps any remote above)
+# ============================================================
+# Configure this when GITPRESERVER_ENCRYPT=true.
+# Set GITPRESERVER_CRYPT_REMOTE=gitpreserver-crypt
+#
+# To generate obscured passphrases:
+#   rclone obscure 'your-strong-passphrase'
+#
+# CRITICAL: Store both password values in Bitwarden.
+# Without them, your backup is permanently unrecoverable.
+
+[gitpreserver-crypt]
+type = crypt
+remote = b2-remote:gitpreserver-backups
+filename_encryption = standard
+directory_name_encryption = true
+password = RCLONE_OBSCURED_PASSPHRASE
+password2 = RCLONE_OBSCURED_SALT
