@@ -1,38 +1,51 @@
+# GitPreserver docker-compose
+#
+# All three services share an image built from ./docker/Dockerfile, mount the
+# same backup volume, and run as the non-root `gitpreserver` user.
+#
+# Host bind mounts (./backups and ./rclone/rclone.conf) must be readable and
+# writable by the container UID/GID. Override with PUID/PGID environment
+# variables to match your host user — set them in .env or your shell:
+#
+#   PUID=$(id -u)  PGID=$(id -g)  docker compose run --rm mirror
+#
+# rclone.conf is mounted read-only — the image will never modify it.
+
+x-gitpreserver: &gitpreserver
+  build:
+    context: .
+    dockerfile: docker/Dockerfile
+  user: "${PUID:-1000}:${PGID:-1000}"
+  env_file: .env
+  restart: "no"
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
 services:
 
   mirror:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    <<: *gitpreserver
     volumes:
       - ${GITPRESERVER_BACKUP_DIR:-./backups}:/backups
-    env_file: .env
     command: ["mirror.sh"]
-    restart: "no"
 
   metadata:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    <<: *gitpreserver
     volumes:
       - ${GITPRESERVER_BACKUP_DIR:-./backups}:/backups
-    env_file: .env
     command: ["metadata.sh"]
-    restart: "no"
     depends_on:
       mirror:
         condition: service_completed_successfully
 
   sync:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile
+    <<: *gitpreserver
     volumes:
       - ${GITPRESERVER_BACKUP_DIR:-./backups}:/backups
-      - ${GITPRESERVER_RCLONE_CONFIG:-./rclone/rclone.conf}:/root/.config/rclone/rclone.conf:ro
-    env_file: .env
+      - ${GITPRESERVER_RCLONE_CONFIG:-./rclone/rclone.conf}:/home/gitpreserver/.config/rclone/rclone.conf:ro
     command: ["sync.sh"]
-    restart: "no"
     depends_on:
       metadata:
         condition: service_completed_successfully
