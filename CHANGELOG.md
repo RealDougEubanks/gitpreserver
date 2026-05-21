@@ -31,6 +31,7 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `bats` test suite under `tests/` covering input validation and dry-run pipelines
 - CI: hadolint on the Dockerfile, `docker compose build` smoke job, bats run, gitleaks secret scan
 - `run-backup.sh` now accepts a positional destination path, `--no-sync`, and `--dry-run` flags so a single command can run an ad-hoc local backup (`./run-backup.sh /mnt/nas/github --no-sync`) without editing `.env`
+- Documentation now leads with GitHub fine-grained PATs (`github_pat_…`) and the per-repository least-privilege permissions model; classic PATs (`ghp_…`) are retained as a documented fallback
 - `GITPRESERVER_HOST_BACKUP_DIR` separates the host bind-mount path from the in-container `GITPRESERVER_BACKUP_DIR`, fixing a path-overload bug that prevented runs on macOS
 
 ### Changed

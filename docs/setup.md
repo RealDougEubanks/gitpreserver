@@ -31,14 +31,41 @@ You can install it anywhere. `/opt/gitpreserver` is the recommended production p
 
 ## Step 2 — Create a Personal Access Token
 
-**GitHub:**
-1. Go to **Settings → Developer settings → Personal access tokens → Tokens (classic)**
-2. Click **Generate new token (classic)**
-3. Give it a descriptive name (e.g. `gitpreserver`)
-4. Set expiry — 1 year is a reasonable balance between security and convenience
-5. Select scopes: `repo` (full), `read:user`
-6. If you want to back up organization repositories: also select `read:org`
-7. Click **Generate token** and copy it immediately — you can't see it again
+GitHub offers two PAT formats. **Fine-grained PATs are recommended** — they expose a least-privilege permissions model and can be scoped to a specific repository selection. Classic PATs work too and are kept as a fallback for accounts or orgs that don't yet support fine-grained tokens.
+
+### Fine-grained PAT (recommended — `github_pat_…`)
+
+1. Go to **Settings → Developer settings → Personal access tokens → Fine-grained tokens**.
+2. Click **Generate new token**.
+3. Name it `gitpreserver` and set an expiry. 90 days is GitHub's default; 1 year is the maximum.
+4. **Resource owner**: yourself, or the organization whose repos you want to back up.
+5. **Repository access**: **All repositories** (or **Only select repositories** if you want to limit scope).
+6. **Repository permissions** — set all four to **Read-only**:
+
+   | Permission | Why |
+   |---|---|
+   | Contents | Clone repository content (branches, tags, history) |
+   | Metadata | Mandatory baseline — GitHub auto-selects this |
+   | Issues | Export issues to JSON |
+   | Pull requests | Export PRs to JSON |
+
+   Leave every other permission set to **No access**.
+
+7. If you're targeting an organization's repositories:
+   - The org must allow fine-grained PATs under **Organization settings → Personal access tokens**. Some orgs require an admin to approve each token.
+   - Under **Organization permissions** set **Members: Read-only** so `gh repo list <org>` can enumerate the repositories.
+
+8. Click **Generate token** and copy it immediately — GitHub will not show it again. Paste into `.env` as `GITPRESERVER_TOKEN=github_pat_…`.
+
+### Classic PAT (fallback — `ghp_…`)
+
+Use this only if your account or org cannot use fine-grained tokens.
+
+1. Go to **Settings → Developer settings → Personal access tokens → Tokens (classic)**.
+2. Click **Generate new token (classic)**.
+3. Name it `gitpreserver` and set an expiry.
+4. Select scopes: `repo` (full), `read:user`. Add `read:org` if you're backing up organization repositories.
+5. Click **Generate token** and copy it immediately. Paste into `.env` as `GITPRESERVER_TOKEN=ghp_…`.
 
 ---
 

@@ -38,7 +38,7 @@ GitHub suffered over 257 incidents between May 2025 and April 2026. If you've in
 ### Prerequisites
 
 - Docker and Docker Compose
-- A GitHub Personal Access Token with `repo` and `read:user` scopes
+- A GitHub Personal Access Token — fine-grained (recommended) with **Contents**, **Metadata**, **Issues**, and **Pull requests** set to **Read**, or classic with `repo` + `read:user` scopes. See [docs/setup.md](docs/setup.md#step-2--create-a-personal-access-token) for details.
 - An rclone-supported storage destination (or use local-only mode)
 
 ### 1. Clone the repo
@@ -57,7 +57,7 @@ cp config/.env.example .env
 Edit `.env` and set at minimum:
 
 ```bash
-GITPRESERVER_TOKEN=ghp_your_token_here
+GITPRESERVER_TOKEN=github_pat_your_token_here   # or ghp_… for a classic PAT
 GITPRESERVER_USERNAME=your_github_username
 ```
 
