@@ -1,5 +1,8 @@
 FROM debian:bookworm-slim
 
+# pipefail catches mid-pipeline failures in `curl | tar` style installs below.
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 ARG GHORG_VERSION=1.9.10
 ARG GH_VERSION=2.47.0
 ARG RCLONE_VERSION=1.67.0
