@@ -1,19 +1,34 @@
-# GitPreserver crontab entry
+# GitPreserver crontab examples
 #
 # Add to your crontab with: crontab -e
 # Or drop in /etc/cron.d/gitpreserver (requires the SHELL and PATH lines).
 #
-# Adjust the path to match where you cloned GitPreserver.
+# Adjust the install path (/opt/gitpreserver) to wherever you cloned the repo.
 # Log rotation for /var/log/gitpreserver.log: see docs/setup.md.
 
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 
-# Run every Sunday at 2:00 AM
+# ------------------------------------------------------------
+# Default: weekly backup using .env settings (rclone + local)
+# ------------------------------------------------------------
 0 2 * * 0  cd /opt/gitpreserver && ./run-backup.sh >> /var/log/gitpreserver.log 2>&1
 
-# Alternative schedules — uncomment one and remove the line above:
+# ------------------------------------------------------------
+# Local-only backups (no rclone) — pick one
+# ------------------------------------------------------------
+# Weekly local backup to a mounted NAS share, no rclone sync
+# 0 2 * * 0  /opt/gitpreserver/run-backup.sh /mnt/nas/github --no-sync >> /var/log/gitpreserver.log 2>&1
 
+# Nightly local backup to an external USB disk
+# 0 3 * * *  /opt/gitpreserver/run-backup.sh /media/backup/github --no-sync >> /var/log/gitpreserver.log 2>&1
+
+# Every 12 hours, local-only, to a path on a different filesystem
+# 0 */12 * * *  /opt/gitpreserver/run-backup.sh /srv/backups/github --no-sync >> /var/log/gitpreserver.log 2>&1
+
+# ------------------------------------------------------------
+# Other schedules using the default .env config
+# ------------------------------------------------------------
 # Daily at 2:00 AM
 # 0 2 * * *  cd /opt/gitpreserver && ./run-backup.sh >> /var/log/gitpreserver.log 2>&1
 

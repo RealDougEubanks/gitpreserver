@@ -1,0 +1,38 @@
+# Secrets and local state — must never enter the image build context
+.env
+*.env
+!config/.env.example
+rclone/rclone.conf
+rclone.conf
+
+# Local backup snapshots
+backups/
+backup/*.log
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD and platform packaging (not needed at runtime)
+.github/
+synology/
+unraid/
+
+# Documentation (not needed in the image)
+docs/
+*.md
+LICENSE
+CNAME
+
+# Editor and OS artifacts
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/

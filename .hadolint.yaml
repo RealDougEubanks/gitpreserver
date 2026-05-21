@@ -1,0 +1,11 @@
+# Hadolint configuration for GitPreserver.
+#
+# DL3008: Pin versions in apt-get install.
+#   Debian stable's package index is curated and security-updated; pinning
+#   apt versions would lock the image to a specific point in time and miss
+#   security patches between rebuilds. We accept the stability/security
+#   trade-off and rely on the base image tag (bookworm-slim) for pinning.
+ignored:
+  - DL3008
+
+failure-threshold: warning

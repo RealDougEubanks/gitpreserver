@@ -38,7 +38,7 @@ GitHub suffered over 257 incidents between May 2025 and April 2026. If you've in
 ### Prerequisites
 
 - Docker and Docker Compose
-- A GitHub Personal Access Token with `repo` and `read:user` scopes
+- A GitHub Personal Access Token — fine-grained (recommended) with **Contents**, **Metadata**, **Issues**, and **Pull requests** set to **Read**, or classic with `repo` + `read:user` scopes. See [docs/setup.md](docs/setup.md#step-2--create-a-personal-access-token) for details.
 - An rclone-supported storage destination (or use local-only mode)
 
 ### 1. Clone the repo
@@ -57,19 +57,30 @@ cp config/.env.example .env
 Edit `.env` and set at minimum:
 
 ```bash
-GITPRESERVER_TOKEN=ghp_your_token_here
+GITPRESERVER_TOKEN=github_pat_your_token_here   # or ghp_… for a classic PAT
 GITPRESERVER_USERNAME=your_github_username
 ```
 
 To sync offsite, also set `GITPRESERVER_RCLONE_REMOTE` to a remote configured in `rclone/rclone.conf`. See [docs/storage-backends.md](docs/storage-backends.md).
 
+The container runs as a non-root user (UID/GID 1000 by default). If your host user is a different UID, set `PUID` and `PGID` in `.env`:
+
+```bash
+echo "PUID=$(id -u)" >> .env
+echo "PGID=$(id -g)" >> .env
+```
+
 ### 3. Run a backup
 
 ```bash
-./run-backup.sh
+./run-backup.sh                                  # full run using .env
+./run-backup.sh /mnt/backup/github --no-sync     # local-only one-off
+./run-backup.sh --dry-run                        # validate config, write nothing
 ```
 
-This mirror-clones your repos, exports metadata, and syncs to your configured remote. Backups land in `./backups/YYYY-MM-DD/`.
+`./run-backup.sh` mirror-clones your repos, exports metadata, and syncs to your configured remote. Backups land in `./backups/YYYY-MM-DD/` by default, or in the path you pass as the first argument.
+
+Pass `--no-sync` to skip rclone entirely — useful for backing up to a NAS share, external disk, or any path on the host without configuring a remote.
 
 ### 4. Schedule it
 
