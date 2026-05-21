@@ -79,6 +79,30 @@ docker compose build
 
 This builds a single image containing ghorg, gh CLI, and rclone. It takes a minute or two on first run; subsequent runs use the Docker layer cache.
 
+### Host volume ownership
+
+The container runs as a non-root user with **UID 1000 / GID 1000** by default. The `./backups` directory and `./rclone/rclone.conf` must be readable and writable by that UID, or the container will fail with `Permission denied`.
+
+If your host user is already UID 1000 (the default on most Debian/Ubuntu installs), you're done — `./backups` will be created automatically with the right ownership.
+
+If your host user is a different UID, you have two options:
+
+1. **Recommended — override at runtime.** Set `PUID` and `PGID` in your shell or `.env` so the container runs as your host user:
+
+   ```bash
+   echo "PUID=$(id -u)" >> .env
+   echo "PGID=$(id -g)" >> .env
+   ```
+
+2. **Alternative — chown the backup directory:**
+
+   ```bash
+   mkdir -p backups
+   sudo chown -R 1000:1000 backups rclone/rclone.conf
+   ```
+
+On Synology and unRAID the platform packages handle this automatically — see the platform-specific setup guides.
+
 ---
 
 ## Step 6 — Run your first backup

@@ -63,6 +63,13 @@ GITPRESERVER_USERNAME=your_github_username
 
 To sync offsite, also set `GITPRESERVER_RCLONE_REMOTE` to a remote configured in `rclone/rclone.conf`. See [docs/storage-backends.md](docs/storage-backends.md).
 
+The container runs as a non-root user (UID/GID 1000 by default). If your host user is a different UID, set `PUID` and `PGID` in `.env`:
+
+```bash
+echo "PUID=$(id -u)" >> .env
+echo "PGID=$(id -g)" >> .env
+```
+
 ### 3. Run a backup
 
 ```bash
