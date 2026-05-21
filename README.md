@@ -1,5 +1,7 @@
 # GitPreserver
 
+<img src="assets/icon-128.png" alt="GitPreserver" width="80" align="right"/>
+
 > A life preserver for your git repositories.
 > Mirror your code, preserve your history, survive the flood.
 
