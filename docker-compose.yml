@@ -28,13 +28,13 @@ services:
   mirror:
     <<: *gitpreserver
     volumes:
-      - ${GITPRESERVER_BACKUP_DIR:-./backups}:/backups
+      - ${GITPRESERVER_HOST_BACKUP_DIR:-./backups}:/backups
     command: ["mirror.sh"]
 
   metadata:
     <<: *gitpreserver
     volumes:
-      - ${GITPRESERVER_BACKUP_DIR:-./backups}:/backups
+      - ${GITPRESERVER_HOST_BACKUP_DIR:-./backups}:/backups
     command: ["metadata.sh"]
     depends_on:
       mirror:
@@ -43,7 +43,7 @@ services:
   sync:
     <<: *gitpreserver
     volumes:
-      - ${GITPRESERVER_BACKUP_DIR:-./backups}:/backups
+      - ${GITPRESERVER_HOST_BACKUP_DIR:-./backups}:/backups
       - ${GITPRESERVER_RCLONE_CONFIG:-./rclone/rclone.conf}:/home/gitpreserver/.config/rclone/rclone.conf:ro
     command: ["sync.sh"]
     depends_on:

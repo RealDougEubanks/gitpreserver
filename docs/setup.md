@@ -11,6 +11,8 @@ This guide covers first-time setup on any Linux or macOS host running Docker.
 - A GitHub Personal Access Token (instructions below)
 - An rclone-supported storage destination — or skip remote sync and keep backups local
 
+On Linux, `flock` (from `util-linux`) is used by `run-backup.sh` to prevent overlapping cron runs. It's preinstalled on essentially every Linux distribution. macOS doesn't ship `flock`; the wrapper falls back to running without overlap protection (fine for interactive runs and ad-hoc testing). Install it with `brew install flock` if you cron-schedule GitPreserver on a Mac.
+
 For Synology DSM, see [synology-setup.md](synology-setup.md).
 For unRAID, see [unraid-setup.md](unraid-setup.md).
 

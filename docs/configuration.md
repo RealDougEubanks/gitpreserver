@@ -42,7 +42,8 @@ All variables are prefixed `GITPRESERVER_` to avoid collisions with other tools.
 
 | Variable | Default | Description |
 |---|---|---|
-| `GITPRESERVER_BACKUP_DIR` | `/backups` | Path inside the container where backups are staged. Mount a host volume here. |
+| `GITPRESERVER_HOST_BACKUP_DIR` | `./backups` | **Host** path bind-mounted into the container at `/backups`. Use an absolute path in production. |
+| `GITPRESERVER_BACKUP_DIR` | `/backups` | **Container** path the scripts write to. The host directory above is mounted here. Most users should not change this. |
 | `GITPRESERVER_RETENTION_DAYS` | `30` | Delete local snapshots older than this many days. Set to `0` to keep forever. |
 
 ### Remote sync (rclone)
