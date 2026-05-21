@@ -67,6 +67,12 @@ jobs:
   gitleaks:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # gitleaks-action lists PR commits and (optionally) comments findings
+      # on the PR. It needs these scopes; the workflow-level default of
+      # contents-only is not enough on pull_request events.
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
