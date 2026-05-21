@@ -55,8 +55,8 @@ RUN set -eux \
 
 # Non-root runtime user. Host bind mounts must be writable by this UID/GID
 # (override at build time with --build-arg PUID/PGID, or at runtime with `user:` in compose).
-RUN groupadd --system --gid "${PGID}" gitpreserver \
- && useradd --system --uid "${PUID}" --gid "${PGID}" \
+RUN groupadd --gid "${PGID}" gitpreserver \
+ && useradd --uid "${PUID}" --gid "${PGID}" \
       --home-dir /home/gitpreserver --create-home \
       --shell /usr/sbin/nologin gitpreserver \
  && mkdir -p /backups /home/gitpreserver/.config/rclone \
