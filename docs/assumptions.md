@@ -15,11 +15,11 @@ Each entry uses the format:
 
 ---
 
-## Container runs as a fixed non-root user (UID/GID 1000)
+## Container runs as a fixed non-root user (UID/GID 1000) by default; PUID/PGID adjust at runtime
 
-**Assumption:** The runtime image runs as `gitpreserver` (UID 1000, GID 1000) by default. Host bind mounts (`./backups`, `./rclone/rclone.conf`) must be readable and writable by that UID, or the user must override with the `PUID`/`PGID` build args or `user:` directive in `docker-compose.yml`.
+**Assumption:** The image starts as root for a few hundred milliseconds so `docker/entrypoint.sh` can `usermod`/`groupmod` the `gitpreserver` user to match `PUID`/`PGID` env vars, `chown` the writable mounts, then `exec gosu gitpreserver:gitpreserver "$@"`. The workload — ghorg, gh, rclone — never runs as root. Default PUID/PGID are 1000/1000; unRAID convention is 99/100 (`nobody:users`).
 
-**Why:** Least-privilege execution per Golden Rules. Running as root inside a container that touches user-owned data and writes a snapshot directory tree every night is unnecessary risk. UID 1000 matches the default first-user UID on Debian/Ubuntu/most desktop Linux, which is the common host environment.
+**Why:** Least-privilege execution per Golden Rules — the long-running workload must not be root. Runtime PUID/PGID handling is required for unRAID and Synology ergonomics; their conventions assume containers honor those env vars (linuxserver.io pattern). A buildtime-only UID would force every user to either rebuild the image locally or chown every shared path. Capabilities are dropped to `CHOWN, FOWNER, SETUID, SETGID` — the minimum the entrypoint needs — with `no-new-privileges:true` set so the entrypoint cannot escalate beyond what the kernel grants on launch.
 
 **Recorded by:** Claude (feature/phase1-mvp)
 **Date:** 2026-05-21
