@@ -136,6 +136,12 @@ compose_run_args() {
 
 run_pipeline() {
     log "Starting backup run (pid $$)"
+    # Build once up front so all three stages share a freshly built image.
+    # Docker's layer cache makes this near-instant when nothing changed;
+    # without it, edits to backup/*.sh or docker/Dockerfile silently run
+    # the previously-built image and look like the change had no effect.
+    log "Ensuring image is up to date (docker compose build)"
+    docker compose build --quiet
     compose_run_args mirror
     compose_run_args metadata
 

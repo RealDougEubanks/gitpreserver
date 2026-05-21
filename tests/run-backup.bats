@@ -49,6 +49,17 @@ SHIM
     grep -q 'compose run --rm sync' "${BATS_TEST_TMPDIR}/docker-calls"
 }
 
+@test "run-backup.sh: builds image before running stages (regression)" {
+    # Without `compose build`, edits to backup/*.sh or the Dockerfile run
+    # the stale cached image and look like the change had no effect.
+    setup_docker_shim
+    export GITPRESERVER_LOCKED=1
+    run "${REPO_ROOT}/run-backup.sh"
+    [ "${status}" -eq 0 ]
+    # First docker call must be a build.
+    head -n1 "${BATS_TEST_TMPDIR}/docker-calls" | grep -q 'compose build'
+}
+
 @test "run-backup.sh: --no-sync skips sync service and runs retention prune via mirror" {
     setup_docker_shim
     export GITPRESERVER_LOCKED=1
@@ -71,6 +82,7 @@ SHIM
     [ "${status}" -eq 0 ]
     while IFS= read -r line; do
         [[ -z "${line}" ]] && continue
+        [[ "${line}" == compose\ build* ]] && continue
         [[ "${line}" == *"GITPRESERVER_DRY_RUN=true"* ]] || {
             echo "Missing DRY_RUN on: ${line}" >&2
             return 1
@@ -86,6 +98,7 @@ SHIM
     # Every compose run line should carry the dry-run env override.
     while IFS= read -r line; do
         [[ -z "${line}" ]] && continue
+        [[ "${line}" == compose\ build* ]] && continue
         [[ "${line}" == *"GITPRESERVER_DRY_RUN=true"* ]] || {
             echo "Missing DRY_RUN on: ${line}" >&2
             return 1
