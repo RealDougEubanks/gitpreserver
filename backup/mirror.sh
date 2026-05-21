@@ -20,24 +20,30 @@ DRY_RUN="${GITPRESERVER_DRY_RUN:-false}"
 CONCURRENCY="${GITPRESERVER_CONCURRENCY:-4}"
 
 BACKUP_DATE=$(date -u +%Y-%m-%d)
-OUTPUT_DIR="${BACKUP_DIR}/${BACKUP_DATE}/repos"
+SNAPSHOT_PARENT="${BACKUP_DIR}/${BACKUP_DATE}"
+OUTPUT_DIR="${SNAPSHOT_PARENT}/repos"
 
 if [[ "${DRY_RUN}" == "true" ]]; then
     log "DRY RUN: would mirror ${GITPRESERVER_USERNAME} (${HOST_TYPE}) -> ${OUTPUT_DIR}"
     exit 0
 fi
 
-mkdir -p "${OUTPUT_DIR}"
+mkdir -p "${SNAPSHOT_PARENT}"
 
 log "Starting mirror clone: ${GITPRESERVER_USERNAME} (${HOST_TYPE}) -> ${OUTPUT_DIR}"
 
-# Tokens are passed via ghorg's env vars (GHORG_*_TOKEN) — never via --token=
-# on the command line, which would leak into /proc/<pid>/cmdline and `ps`.
+# ghorg writes to <--path>/<--output-dir>. --output-dir is a *name*, not a
+# path — if you pass an absolute path there, ghorg treats it as a literal
+# subdirectory name under $HOME/ghorg/. Use --path for the absolute parent.
+#
+# Tokens are passed via GHORG_*_TOKEN env vars — never via --token= on the
+# command line, which would leak into /proc/<pid>/cmdline and `ps`.
 ghorg_args=(
     clone "${GITPRESERVER_USERNAME}"
     --clone-type=user
     --backup
-    --output-dir="${OUTPUT_DIR}"
+    --path="${SNAPSHOT_PARENT}"
+    --output-dir=repos
     --concurrency="${CONCURRENCY}"
 )
 

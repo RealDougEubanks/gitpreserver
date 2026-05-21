@@ -68,31 +68,32 @@ for repo in "${repos[@]}"; do
 
     log "  ${GITPRESERVER_USERNAME}/${repo}"
 
-    if ! gh issue list \
-            --repo "${GITPRESERVER_USERNAME}/${repo}" \
-            --state all \
-            --limit 10000 \
-            --json number,title,state,body,labels,assignees,createdAt,closedAt,author \
-            > "${repo_meta_dir}/issues.json" 2>/dev/null; then
+    # gh's `release list`/`issue list`/`pr list` subcommands exit non-zero
+    # on empty result sets, which generated false-positive warnings.
+    # Use `gh api --paginate` instead — it always exits 0 unless the request
+    # itself fails. `--paginate` concatenates per-page arrays, so we merge
+    # them with `jq -s 'add // []'`. The `// []` keeps an empty result valid.
+    api_base="repos/${GITPRESERVER_USERNAME}/${repo}"
+
+    # GitHub's /issues endpoint returns PRs as well as issues (PRs are
+    # issues at the API level); filter them out so issues.json is issues only.
+    if ! gh api --paginate "${api_base}/issues?state=all&per_page=100" 2>/dev/null \
+            | jq -s 'add // [] | map(select(.pull_request == null))' \
+            > "${repo_meta_dir}/issues.json"; then
         echo '[]' > "${repo_meta_dir}/issues.json"
         log "  WARNING: could not export issues for ${repo}"
     fi
 
-    if ! gh pr list \
-            --repo "${GITPRESERVER_USERNAME}/${repo}" \
-            --state all \
-            --limit 10000 \
-            --json number,title,state,body,labels,assignees,createdAt,closedAt,author,mergedAt \
-            > "${repo_meta_dir}/pull_requests.json" 2>/dev/null; then
+    if ! gh api --paginate "${api_base}/pulls?state=all&per_page=100" 2>/dev/null \
+            | jq -s 'add // []' \
+            > "${repo_meta_dir}/pull_requests.json"; then
         echo '[]' > "${repo_meta_dir}/pull_requests.json"
         log "  WARNING: could not export pull requests for ${repo}"
     fi
 
-    if ! gh release list \
-            --repo "${GITPRESERVER_USERNAME}/${repo}" \
-            --limit 1000 \
-            --json name,tagName,publishedAt,isDraft,isPrerelease,body \
-            > "${repo_meta_dir}/releases.json" 2>/dev/null; then
+    if ! gh api --paginate "${api_base}/releases?per_page=100" 2>/dev/null \
+            | jq -s 'add // []' \
+            > "${repo_meta_dir}/releases.json"; then
         echo '[]' > "${repo_meta_dir}/releases.json"
         log "  WARNING: could not export releases for ${repo}"
     fi

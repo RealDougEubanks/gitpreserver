@@ -63,6 +63,28 @@ load test_helper
     [[ "${output}" == *"DRY RUN"* ]]
 }
 
+@test "mirror.sh: passes --path (absolute parent) and --output-dir=repos to ghorg" {
+    # Regression guard: --output-dir is a NAME, not a path. We must use --path
+    # for the absolute parent or ghorg writes to \$HOME/ghorg inside the container.
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+    cat > "${shim_dir}/ghorg" <<SHIM
+#!/usr/bin/env bash
+printf '%s\n' "\$@" > "${BATS_TEST_TMPDIR}/ghorg-args"
+SHIM
+    chmod +x "${shim_dir}/ghorg"
+    export PATH="${shim_dir}:${PATH}"
+
+    export GITPRESERVER_TOKEN=ghp_dummy
+    export GITPRESERVER_USERNAME=alice
+    run "${REPO_ROOT}/backup/mirror.sh"
+    [ "${status}" -eq 0 ]
+    grep -q "^--path=${GITPRESERVER_BACKUP_DIR}/" "${BATS_TEST_TMPDIR}/ghorg-args"
+    grep -qx -- '--output-dir=repos' "${BATS_TEST_TMPDIR}/ghorg-args"
+    # Make sure the old bug (full path passed to --output-dir) cannot regress.
+    ! grep -qE '^--output-dir=.*/' "${BATS_TEST_TMPDIR}/ghorg-args"
+}
+
 @test "mirror.sh: accepts dotted usernames like 'my.org'" {
     export GITPRESERVER_TOKEN=ghp_dummy
     export GITPRESERVER_USERNAME='my.org'

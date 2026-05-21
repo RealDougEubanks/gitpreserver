@@ -103,7 +103,14 @@ if [[ -n "${DEST_PATH}" ]]; then
     log "Backup destination: ${DEST_PATH}"
 fi
 
-if [[ "${CLI_DRY_RUN}" == "true" ]]; then
+# Honor either the CLI flag or the shell environment variable. Shell env
+# vars set on the command line (e.g. `GITPRESERVER_DRY_RUN=true ./run-backup.sh`)
+# would otherwise be silently dropped because `docker compose run` does not
+# inherit the parent shell's environment for container env, only for compose's
+# own variable substitution. Threading it through -e below ensures parity
+# between `./run-backup.sh --dry-run` and `GITPRESERVER_DRY_RUN=true ./run-backup.sh`.
+if [[ "${CLI_DRY_RUN}" == "true" || "${GITPRESERVER_DRY_RUN:-}" == "true" ]]; then
+    CLI_DRY_RUN=true
     export GITPRESERVER_DRY_RUN=true
 fi
 

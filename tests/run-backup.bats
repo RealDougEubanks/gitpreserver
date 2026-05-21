@@ -63,6 +63,21 @@ SHIM
     grep -q -- '-e GITPRESERVER_RCLONE_REMOTE=' "${BATS_TEST_TMPDIR}/docker-calls"
 }
 
+@test "run-backup.sh: shell-env GITPRESERVER_DRY_RUN is honored" {
+    setup_docker_shim
+    export GITPRESERVER_LOCKED=1
+    export GITPRESERVER_DRY_RUN=true
+    run "${REPO_ROOT}/run-backup.sh"
+    [ "${status}" -eq 0 ]
+    while IFS= read -r line; do
+        [[ -z "${line}" ]] && continue
+        [[ "${line}" == *"GITPRESERVER_DRY_RUN=true"* ]] || {
+            echo "Missing DRY_RUN on: ${line}" >&2
+            return 1
+        }
+    done < "${BATS_TEST_TMPDIR}/docker-calls"
+}
+
 @test "run-backup.sh: --dry-run threads through to every stage" {
     setup_docker_shim
     export GITPRESERVER_LOCKED=1

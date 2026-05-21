@@ -43,6 +43,9 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `run-backup.sh` now self-execs under `flock -n` to prevent overlapping cron runs
 
 ### Fixed
+- `backup/mirror.sh` now uses ghorg's `--path` (absolute parent) flag with `--output-dir=repos`; the previous code passed an absolute path to `--output-dir`, which ghorg treats as a literal subdirectory name under `$HOME/ghorg/`, so cloned repos never reached the bind-mounted `/backups` volume
+- `backup/metadata.sh` now exports via `gh api --paginate | jq -s 'add // []'`; the previous `gh release list`/`gh issue list`/`gh pr list` subcommands exit non-zero on empty result sets, which produced a false-positive `WARNING: could not export releases` for every repo. `issues.json` no longer contains PRs (the `/issues` endpoint returns both — filtered out via `select(.pull_request == null)`)
+- `run-backup.sh` now honors `GITPRESERVER_DRY_RUN=true` set in the shell environment, not just the `--dry-run` CLI flag; previously the shell var was silently dropped because `docker compose run` does not inherit parent-shell env into container env
 - ghorg release asset URL — release files use `Linux` (capital L) and the `arm64` arch suffix; the previous URL would 404 on both amd64 and arm64
 - `backup/metadata.sh` reported "1 repository" when the user had zero (`echo` on an empty string still emits a newline); now uses `mapfile` and an array length
 - `backup/sync.sh` retention pruning: removed dead `${DRY_RUN:+}` token and switched to `find -print0` / `read -d ''` so unusual directory names cannot break `rm`
