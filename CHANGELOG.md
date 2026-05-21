@@ -10,6 +10,15 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `CREDITS.md` attributing every bundled runtime tool (ghorg, gh, rclone, tini, jq, git, Debian) and every dev/CI tool (bats-core, ShellCheck, hadolint, gitleaks) with project links, licenses, and the role each plays in GitPreserver
+- README "Credits" section linking to `CREDITS.md`
+- Dockerfile labels `org.opencontainers.image.documentation`, `org.opencontainers.image.vendor`, and `org.gitpreserver.dependencies` so Docker Hub and SBOM tools display the bundled-tool inventory with versions
+
+---
+
+## [1.0.0] — 2026-05-21
+
+### Added
 - Initial project scaffold: Dockerfile, backup scripts, docker-compose, config examples
 - `backup/mirror.sh` — mirror-clone all repos for a GitHub account via ghorg
 - `backup/metadata.sh` — export issues, pull requests, and releases as JSON sidecars
@@ -54,10 +63,6 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Input validation on `GITPRESERVER_USERNAME` and discovered repo names (`^[A-Za-z0-9._-]+$`)
 - Numeric validation on `GITPRESERVER_RETENTION_DAYS` and `GITPRESERVER_RCLONE_TRANSFERS`
 - `.dockerignore` prevents `.env`, `rclone.conf`, `.git/`, docs, and CI configs from entering the image build context
-
----
-
-## [1.0.0] — TBD
 
 First public release. GitHub account backup (Phase 1).
 

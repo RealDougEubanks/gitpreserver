@@ -182,6 +182,12 @@ Bug reports, feature requests, and pull requests are welcome. See [CONTRIBUTING.
 
 ---
 
+## Credits
+
+GitPreserver bundles [ghorg](https://github.com/gabrie30/ghorg), [gh](https://github.com/cli/cli), [rclone](https://github.com/rclone/rclone), [tini](https://github.com/krallin/tini), [jq](https://github.com/jqlang/jq), and [git](https://git-scm.com/) on a [Debian](https://www.debian.org/) base image. Tests and CI use [bats-core](https://github.com/bats-core/bats-core), [ShellCheck](https://github.com/koalaman/shellcheck), [hadolint](https://github.com/hadolint/hadolint), and [gitleaks](https://github.com/gitleaks/gitleaks). See [CREDITS.md](CREDITS.md) for full attribution and licenses.
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

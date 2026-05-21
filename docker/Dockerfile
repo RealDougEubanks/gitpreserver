@@ -12,7 +12,10 @@ ARG PGID=1000
 LABEL org.opencontainers.image.title="GitPreserver" \
       org.opencontainers.image.description="A life preserver for your git repositories." \
       org.opencontainers.image.source="https://github.com/RealDougEubanks/gitpreserver" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.documentation="https://github.com/RealDougEubanks/gitpreserver#readme" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.vendor="Doug Eubanks" \
+      org.gitpreserver.dependencies="ghorg=${GHORG_VERSION} (Apache-2.0); gh=${GH_VERSION} (MIT); rclone=${RCLONE_VERSION} (MIT); tini (MIT); jq (MIT); git (GPL-2.0); debian:bookworm-slim"
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
