@@ -10,6 +10,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `backup/run-stages.sh` — in-container orchestrator that runs mirror → metadata → sync sequentially in a single container. Used by unRAID, Synology Container Manager, and plain `docker run`. `docker-compose` is unaffected (its per-service `command:` entries still apply).
+- `docker/entrypoint.sh` — runtime PUID/PGID/UMASK handler. Container starts as root, adjusts the `gitpreserver` user to match host UID/GID, chowns writable mounts, and drops privileges via `gosu`. Workload never runs as root.
+- `unraid/gitpreserver.xml` — Community Applications template, audited end-to-end against the v1.0 codebase (fine-grained PAT guidance, correct rclone path, PUID/PGID/UMASK exposed, misleading `GITPRESERVER_SCHEDULE` removed).
+- `docs/unraid-setup.md` — rewritten install guide covering the CA template flow and a manual `docker compose` flow, with User Scripts scheduling examples for both.
 - `CREDITS.md` attributing every bundled runtime tool (ghorg, gh, rclone, tini, jq, git, Debian) and every dev/CI tool (bats-core, ShellCheck, hadolint, gitleaks) with project links, licenses, and the role each plays in GitPreserver
 - README "Credits" section linking to `CREDITS.md`
 - Dockerfile labels `org.opencontainers.image.documentation`, `org.opencontainers.image.vendor`, and `org.gitpreserver.dependencies` so Docker Hub and SBOM tools display the bundled-tool inventory with versions

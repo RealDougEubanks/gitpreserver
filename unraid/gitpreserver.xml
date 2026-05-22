@@ -6,73 +6,91 @@
   <Network>bridge</Network>
   <Privileged>false</Privileged>
   <Support>https://forums.unraid.net/topic/gitpreserver</Support>
-  <Project>https://github.com/dougeubanks/gitpreserver</Project>
+  <Project>https://github.com/RealDougEubanks/gitpreserver</Project>
   <Overview>
     A life preserver for your git repositories. Mirror-clones all repos with full branch and tag
-    history, exports issues/PRs/releases as JSON, and syncs encrypted backups to Backblaze B2,
-    AWS S3, Google Drive, OneDrive, MEGA, SMB, or any rclone-supported destination.
-    Runs on a cron schedule — no persistent daemon required.
+    history, exports issues/PRs/releases as JSON, and (optionally) syncs encrypted backups to
+    Backblaze B2, AWS S3, Google Drive, OneDrive, MEGA, SMB, or any rclone-supported destination.
+
+    GitPreserver runs as a one-shot batch job. Start the container to run a backup; the container
+    exits when finished. To run on a schedule, use the User Scripts plugin to invoke
+    `docker start GitPreserver` on a cron expression. See the project README for full setup.
   </Overview>
   <Category>Backup: Tools:</Category>
-  <Icon>https://raw.githubusercontent.com/dougeubanks/gitpreserver/main/assets/icon.png</Icon>
+  <Icon>https://raw.githubusercontent.com/RealDougEubanks/gitpreserver/main/assets/icon.png</Icon>
   <ExtraParams></ExtraParams>
+  <PostArgs></PostArgs>
   <DateInstalled></DateInstalled>
+  <Beta>False</Beta>
 
-  <!-- Required -->
+  <!--
+    Personal Access Token. GitHub fine-grained PATs (github_pat_...) are recommended:
+      Repository permissions (Read): Contents, Metadata, Issues, Pull requests.
+      For org repos also add Organization permissions: Members (Read).
+    Classic PATs (ghp_...) work too: scopes 'repo' + 'read:user' (+ 'read:org' for orgs).
+  -->
   <Config Name="Personal Access Token" Target="GITPRESERVER_TOKEN" Default=""
-    Mode="" Description="GitHub/GitLab/Bitbucket Personal Access Token. GitHub requires repo and read:user scopes."
+    Mode="" Description="GitHub Personal Access Token. Fine-grained (github_pat_...) is recommended — see the project README for the exact least-privilege permissions."
     Type="Variable" Display="always" Required="true" Mask="true"/>
 
-  <Config Name="Username" Target="GITPRESERVER_USERNAME" Default=""
+  <Config Name="Username or Org" Target="GITPRESERVER_USERNAME" Default=""
     Mode="" Description="GitHub username or organization name to back up."
     Type="Variable" Display="always" Required="true" Mask="false"/>
 
-  <Config Name="Host Type" Target="GITPRESERVER_HOST_TYPE" Default="github"
-    Mode="" Description="Git host: github | bitbucket | gitlab | gitea"
-    Type="Variable" Display="always" Required="true" Mask="false"/>
-
-  <Config Name="Backup Path" Target="/backups" Default="/mnt/user/appdata/gitpreserver"
-    Mode="rw" Description="Host path where backup snapshots are stored."
+  <Config Name="Backup Path" Target="/backups" Default="/mnt/user/appdata/gitpreserver/backups"
+    Mode="rw" Description="Host path where dated backup snapshots are written. Each run creates a YYYY-MM-DD subdirectory containing repos/ and metadata/."
     Type="Path" Display="always" Required="true" Mask="false"/>
 
-  <!-- Remote sync -->
+  <!--
+    rclone remote sync. Leave 'rclone Remote' blank to keep backups local only,
+    in which case the rclone.conf path below is ignored.
+  -->
   <Config Name="rclone Remote" Target="GITPRESERVER_RCLONE_REMOTE" Default=""
-    Mode="" Description="rclone remote name (e.g. b2-remote). Leave blank for local-only backup."
+    Mode="" Description="rclone remote name (e.g. b2-remote). Must exist in rclone.conf below. Leave blank for local-only backup."
     Type="Variable" Display="always" Required="false" Mask="false"/>
 
-  <Config Name="rclone Path" Target="GITPRESERVER_RCLONE_PATH" Default="gitpreserver-backups"
-    Mode="" Description="Path or bucket on the remote to sync into."
+  <Config Name="rclone Bucket / Path" Target="GITPRESERVER_RCLONE_PATH" Default="gitpreserver-backups"
+    Mode="" Description="Path or bucket on the rclone remote to sync into."
     Type="Variable" Display="always" Required="false" Mask="false"/>
 
-  <Config Name="rclone Config" Target="/root/.config/rclone/rclone.conf" Default="/mnt/user/appdata/gitpreserver/rclone.conf"
-    Mode="ro" Description="Host path to your rclone.conf file."
+  <Config Name="rclone Config File" Target="/home/gitpreserver/.config/rclone/rclone.conf" Default="/mnt/user/appdata/gitpreserver/rclone.conf"
+    Mode="ro" Description="Host path to your rclone.conf. Mounted read-only. Only required when an rclone remote is configured above."
     Type="Path" Display="always" Required="false" Mask="false"/>
 
-  <!-- Encryption -->
+  <!-- Encryption (rclone crypt) -->
   <Config Name="Enable Encryption" Target="GITPRESERVER_ENCRYPT" Default="false"
-    Mode="" Description="Set to true to encrypt backups via rclone crypt. Requires GITPRESERVER_CRYPT_REMOTE."
+    Mode="" Description="Set to 'true' to encrypt backups via rclone crypt. Requires the Crypt Remote below to be configured in rclone.conf."
     Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
   <Config Name="Crypt Remote" Target="GITPRESERVER_CRYPT_REMOTE" Default=""
-    Mode="" Description="rclone crypt remote name (required if encryption is enabled)."
+    Mode="" Description="Name of an rclone crypt remote that wraps your storage remote. Required when Enable Encryption is true."
     Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
-  <!-- Retention and scheduling -->
+  <!-- Retention -->
   <Config Name="Retention Days" Target="GITPRESERVER_RETENTION_DAYS" Default="30"
-    Mode="" Description="Days to keep local snapshots. Set to 0 to keep forever."
+    Mode="" Description="Delete local dated snapshot directories older than this many days. Set to 0 to keep forever."
     Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
-  <Config Name="Schedule" Target="GITPRESERVER_SCHEDULE" Default="0 2 * * 0"
-    Mode="" Description="Cron expression for backup schedule (default: Sundays at 2 AM)."
+  <!-- Host UID / GID — required so the container can write to /mnt/user paths -->
+  <Config Name="PUID" Target="PUID" Default="99"
+    Mode="" Description="Host user ID for file ownership. unRAID's default 'nobody' user is UID 99."
     Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
-  <!-- Advanced -->
+  <Config Name="PGID" Target="PGID" Default="100"
+    Mode="" Description="Host group ID for file ownership. unRAID's default 'users' group is GID 100."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="UMASK" Target="UMASK" Default="022"
+    Mode="" Description="File creation mask for backup files."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!-- Operational toggles -->
   <Config Name="Log Level" Target="GITPRESERVER_LOG_LEVEL" Default="info"
-    Mode="" Description="Log verbosity: debug | info | warn | error"
+    Mode="" Description="Log verbosity passed to rclone: debug | info | warn | error"
     Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
   <Config Name="Dry Run" Target="GITPRESERVER_DRY_RUN" Default="false"
-    Mode="" Description="Set to true to test without writing or syncing anything."
+    Mode="" Description="Set to 'true' to test without writing repos or syncing. Useful for verifying credentials and paths the first time."
     Type="Variable" Display="advanced" Required="false" Mask="false"/>
 
 </Container>

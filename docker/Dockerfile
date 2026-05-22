@@ -23,6 +23,7 @@ RUN apt-get update \
       ca-certificates \
       curl \
       git \
+      gosu \
       jq \
       tini \
       unzip \
@@ -69,12 +70,22 @@ RUN groupadd --gid "${PGID}" gitpreserver \
  && chown -R gitpreserver:gitpreserver /backups /home/gitpreserver
 
 COPY --chown=root:root --chmod=0755 backup/ /usr/local/bin/
+COPY --chown=root:root --chmod=0755 docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 ENV HOME=/home/gitpreserver \
     RCLONE_CONFIG=/home/gitpreserver/.config/rclone/rclone.conf \
     GH_CONFIG_DIR=/home/gitpreserver/.config/gh
 
-USER gitpreserver
+# Container starts as root so entrypoint.sh can usermod/groupmod the
+# gitpreserver user to match host PUID/PGID, then drops privileges via
+# gosu. The workload (ghorg, gh, rclone) never runs as root.
 WORKDIR /backups
 
-ENTRYPOINT ["/usr/bin/tini", "--"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]
+
+# Default command runs the full pipeline in a single container. docker-compose
+# overrides this with per-service `command:` entries (mirror.sh / metadata.sh /
+# sync.sh) and is unaffected. Standalone `docker run` users — unRAID,
+# Synology Container Manager, ad-hoc invocations — get a working backup
+# without having to know the stage names.
+CMD ["run-stages.sh"]

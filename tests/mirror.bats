@@ -63,6 +63,49 @@ load test_helper
     [[ "${output}" == *"DRY RUN"* ]]
 }
 
+@test "run-stages.sh: runs mirror -> metadata -> sync sequentially, aborting on first failure" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+    # Override the three stage scripts with shims that record invocation order.
+    for stage in mirror metadata sync; do
+        cat > "${shim_dir}/${stage}.sh" <<SHIM
+#!/usr/bin/env bash
+printf '%s\n' "${stage}" >> "${BATS_TEST_TMPDIR}/stage-order"
+SHIM
+        chmod +x "${shim_dir}/${stage}.sh"
+    done
+    export PATH="${shim_dir}:${PATH}"
+
+    run "${REPO_ROOT}/backup/run-stages.sh"
+    [ "${status}" -eq 0 ]
+    [ "$(tr '\n' ' ' < "${BATS_TEST_TMPDIR}/stage-order")" = "mirror metadata sync " ]
+}
+
+@test "run-stages.sh: aborts pipeline if mirror.sh fails" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+    cat > "${shim_dir}/mirror.sh" <<'SHIM'
+#!/usr/bin/env bash
+exit 7
+SHIM
+    # If aborted correctly, metadata and sync are never invoked.
+    cat > "${shim_dir}/metadata.sh" <<SHIM
+#!/usr/bin/env bash
+touch "${BATS_TEST_TMPDIR}/metadata-ran"
+SHIM
+    cat > "${shim_dir}/sync.sh" <<SHIM
+#!/usr/bin/env bash
+touch "${BATS_TEST_TMPDIR}/sync-ran"
+SHIM
+    chmod +x "${shim_dir}"/*.sh
+    export PATH="${shim_dir}:${PATH}"
+
+    run "${REPO_ROOT}/backup/run-stages.sh"
+    [ "${status}" -eq 7 ]
+    [ ! -e "${BATS_TEST_TMPDIR}/metadata-ran" ]
+    [ ! -e "${BATS_TEST_TMPDIR}/sync-ran" ]
+}
+
 @test "mirror.sh: passes --path (absolute parent) and --output-dir=repos to ghorg" {
     # Regression guard: --output-dir is a NAME, not a path. We must use --path
     # for the absolute parent or ghorg writes to \$HOME/ghorg inside the container.

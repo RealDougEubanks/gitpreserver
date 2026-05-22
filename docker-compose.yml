@@ -15,13 +15,20 @@ x-gitpreserver: &gitpreserver
   build:
     context: .
     dockerfile: docker/Dockerfile
-  user: "${PUID:-1000}:${PGID:-1000}"
   env_file: .env
   restart: "no"
   security_opt:
     - no-new-privileges:true
+  # The runtime entrypoint usermods the gitpreserver user to match PUID/PGID
+  # and chowns the writable mounts before dropping privileges via gosu. That
+  # path needs CHOWN, SETUID, SETGID, FOWNER. Everything else is dropped.
   cap_drop:
     - ALL
+  cap_add:
+    - CHOWN
+    - FOWNER
+    - SETUID
+    - SETGID
 
 services:
 

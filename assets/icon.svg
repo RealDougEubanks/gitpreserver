@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Minimal Retro Orange Life Vest Icon</title>
+  <desc id="desc">A minimalistic retro 1980s style orange life vest icon with black straps and orange buckle outlines.</desc>
+  <rect width="512" height="512" fill="#050505"/>
+
+  <!-- Life vest body, split into left and right panels to preserve black center gap -->
+  <path fill="#ff6a00" d="M91 396
+    L91 254
+    C113 232 118 202 117 164
+    L117 111
+    C117 97 128 86 142 86
+    L192 86
+    C199 86 204 90 206 97
+    L245 237
+    L245 424
+    C245 444 229 460 209 460
+    L126 460
+    C107 460 91 444 91 425
+    Z"/>
+
+  <path fill="#ff6a00" d="M267 424
+    L267 237
+    L306 97
+    C308 90 313 86 320 86
+    L370 86
+    C384 86 395 97 395 111
+    L395 164
+    C394 202 399 232 421 254
+    L421 425
+    C421 444 405 460 386 460
+    L303 460
+    C283 460 267 444 267 424
+    Z"/>
+
+  <!-- Retro collar arc -->
+  <path fill="none" stroke="#ff6a00" stroke-width="14" stroke-linecap="butt"
+        d="M185 96 C232 107 280 107 327 96"/>
+
+  <!-- Horizontal black straps -->
+  <rect x="91" y="285" width="330" height="42" fill="#050505"/>
+  <rect x="91" y="375" width="330" height="42" fill="#050505"/>
+
+  <!-- Center seam gap -->
+  <rect x="245" y="238" width="22" height="222" fill="#050505"/>
+
+  <!-- Buckles -->
+  <rect x="222" y="269" width="68" height="68" rx="8" fill="#050505" stroke="#ff6a00" stroke-width="10"/>
+  <rect x="238" y="285" width="36" height="36" rx="2" fill="#050505" stroke="#ff6a00" stroke-width="7"/>
+
+  <rect x="222" y="359" width="68" height="68" rx="8" fill="#050505" stroke="#ff6a00" stroke-width="10"/>
+  <rect x="238" y="375" width="36" height="36" rx="2" fill="#050505" stroke="#ff6a00" stroke-width="7"/>
+</svg>
