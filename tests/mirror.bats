@@ -135,3 +135,37 @@ SHIM
     run "${REPO_ROOT}/backup/mirror.sh"
     [ "${status}" -eq 0 ]
 }
+
+@test "run-stages.sh: writes success status to STATUS_FILE on clean run" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+    for stage in mirror metadata sync; do
+        printf '#!/usr/bin/env bash\nexit 0\n' > "${shim_dir}/${stage}.sh"
+        chmod +x "${shim_dir}/${stage}.sh"
+    done
+    export PATH="${shim_dir}:${PATH}"
+    export GITPRESERVER_STATUS_FILE="${BATS_TEST_TMPDIR}/status.json"
+
+    run "${REPO_ROOT}/backup/run-stages.sh"
+    [ "${status}" -eq 0 ]
+    [ -f "${GITPRESERVER_STATUS_FILE}" ]
+    result="$(jq -r '.status' "${GITPRESERVER_STATUS_FILE}")"
+    [ "${result}" = "success" ]
+}
+
+@test "run-stages.sh: writes failed status to STATUS_FILE when a stage errors" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+    printf '#!/usr/bin/env bash\nexit 3\n' > "${shim_dir}/mirror.sh"
+    chmod +x "${shim_dir}/mirror.sh"
+    export PATH="${shim_dir}:${PATH}"
+    export GITPRESERVER_STATUS_FILE="${BATS_TEST_TMPDIR}/status.json"
+
+    run "${REPO_ROOT}/backup/run-stages.sh"
+    [ "${status}" -ne 0 ]
+    [ -f "${GITPRESERVER_STATUS_FILE}" ]
+    result="$(jq -r '.status' "${GITPRESERVER_STATUS_FILE}")"
+    [ "${result}" = "failed" ]
+    msg="$(jq -r '.message' "${GITPRESERVER_STATUS_FILE}")"
+    [[ "${msg}" == *"mirror"* ]]
+}

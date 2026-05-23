@@ -6,6 +6,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ARG GHORG_VERSION=1.9.10
 ARG GH_VERSION=2.47.0
 ARG RCLONE_VERSION=1.67.0
+ARG SUPERCRONIC_VERSION=0.2.33
 ARG PUID=1000
 ARG PGID=1000
 
@@ -25,9 +26,18 @@ RUN apt-get update \
       git \
       gosu \
       jq \
+      python3 \
       tini \
       unzip \
  && rm -rf /var/lib/apt/lists/*
+
+# Install supercronic — container-native cron daemon (daemon mode scheduler)
+RUN set -eux \
+ && ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') \
+ && curl -fsSL \
+      "https://github.com/aptible/supercronic/releases/download/v${SUPERCRONIC_VERSION}/supercronic-linux-${ARCH}" \
+      -o /usr/local/bin/supercronic \
+ && chmod +x /usr/local/bin/supercronic
 
 # Install rclone — uname -m: x86_64/aarch64 → rclone naming: amd64/arm64
 RUN set -eux \
@@ -71,6 +81,8 @@ RUN groupadd --gid "${PGID}" gitpreserver \
 
 COPY --chown=root:root --chmod=0755 backup/ /usr/local/bin/
 COPY --chown=root:root --chmod=0755 docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chown=root:root --chmod=0755 docker/daemon-start.sh /usr/local/bin/daemon-start.sh
+COPY --chown=root:root --chmod=0755 docker/webserver.py /usr/local/bin/webserver.py
 
 ENV HOME=/home/gitpreserver \
     RCLONE_CONFIG=/home/gitpreserver/.config/rclone/rclone.conf \
@@ -79,6 +91,9 @@ ENV HOME=/home/gitpreserver \
 # Container starts as root so entrypoint.sh can usermod/groupmod the
 # gitpreserver user to match host PUID/PGID, then drops privileges via
 # gosu. The workload (ghorg, gh, rclone) never runs as root.
+# Port for the web UI (daemon mode only). Can be overridden via GITPRESERVER_WEB_PORT.
+EXPOSE 6033
+
 WORKDIR /backups
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/entrypoint.sh"]

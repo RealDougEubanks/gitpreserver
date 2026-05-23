@@ -10,6 +10,24 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `GITPRESERVER_MODE=daemon` — keeps the container running permanently, fires backups on an internal cron schedule via `supercronic`, and serves a web UI on port 6033
+- `docker/daemon-start.sh` — daemon entry point: writes initial status, builds the supercronic crontab, starts the web server, and exec's supercronic under tini
+- `docker/webserver.py` — stdlib-only Python 3 web server (no pip dependencies). Routes: `GET /` dashboard, `GET /healthz` JSON health check, `GET /config` redacted config, `POST /run` manual trigger
+- `backup/run-stages.sh` now writes a JSON status file (`GITPRESERVER_STATUS_FILE`, default `/tmp/gitpreserver-status.json`) after each stage and on failure, giving the web UI real-time feedback
+- `supercronic` added to the Docker image as the in-container cron scheduler for daemon mode
+- `python3` added to the Docker image for the web server
+- `GITPRESERVER_WEB_PORT` (default `6033`) controls the web UI port in daemon mode
+- `GITPRESERVER_STATUS_FILE` allows overriding the status JSON path
+- `daemon` service in `docker-compose.yml` with `restart: unless-stopped` and port mapping
+- `docs/daemon-mode.md` — full guide covering run modes, web UI routes, schedule syntax, rclone env-var configuration, and security notes
+- rclone remote configuration via `RCLONE_CONFIG_<REMOTE>_<KEY>=value` environment variables — `rclone.conf` is no longer required
+- rclone env-var examples added to `config/.env.example`
+
+### Changed
+- `docker-compose.yml` `sync` and `daemon` services now fall back to mounting `/dev/null` when `GITPRESERVER_RCLONE_CONFIG` is not set, allowing env-var-only rclone configuration without a config file on disk
+- `docker/entrypoint.sh` now reads `GITPRESERVER_MODE` and forks to `daemon-start.sh` when set to `daemon`, otherwise passes through to the original `"$@"` path (`oneshot` behaviour unchanged)
+
+### Added
 - `backup/run-stages.sh` — in-container orchestrator that runs mirror → metadata → sync sequentially in a single container. Used by unRAID, Synology Container Manager, and plain `docker run`. `docker-compose` is unaffected (its per-service `command:` entries still apply).
 - `docker/entrypoint.sh` — runtime PUID/PGID/UMASK handler. Container starts as root, adjusts the `gitpreserver` user to match host UID/GID, chowns writable mounts, and drops privileges via `gosu`. Workload never runs as root.
 - `unraid/gitpreserver.xml` — Community Applications template, audited end-to-end against the v1.0 codebase (fine-grained PAT guidance, correct rclone path, PUID/PGID/UMASK exposed, misleading `GITPRESERVER_SCHEDULE` removed).

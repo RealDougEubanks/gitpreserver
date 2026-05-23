@@ -1,15 +1,16 @@
 # GitPreserver docker-compose
 #
-# All three services share an image built from ./docker/Dockerfile, mount the
-# same backup volume, and run as the non-root `gitpreserver` user.
+# All services share an image built from ./docker/Dockerfile and run as the
+# non-root `gitpreserver` user.
 #
-# Host bind mounts (./backups and ./rclone/rclone.conf) must be readable and
-# writable by the container UID/GID. Override with PUID/PGID environment
-# variables to match your host user — set them in .env or your shell:
+# rclone.conf is optional. If GITPRESERVER_RCLONE_CONFIG is not set (or the
+# file does not exist), rclone reads remote configuration from environment
+# variables (RCLONE_CONFIG_<REMOTE>_<KEY>=value). See docs/daemon-mode.md.
+#
+# Host bind mounts must be readable/writable by the container UID/GID.
+# Set PUID/PGID in .env to match your host user:
 #
 #   PUID=$(id -u)  PGID=$(id -g)  docker compose run --rm mirror
-#
-# rclone.conf is mounted read-only — the image will never modify it.
 
 x-gitpreserver: &gitpreserver
   build:
@@ -19,9 +20,6 @@ x-gitpreserver: &gitpreserver
   restart: "no"
   security_opt:
     - no-new-privileges:true
-  # The runtime entrypoint usermods the gitpreserver user to match PUID/PGID
-  # and chowns the writable mounts before dropping privileges via gosu. That
-  # path needs CHOWN, SETUID, SETGID, FOWNER. Everything else is dropped.
   cap_drop:
     - ALL
   cap_add:
@@ -30,18 +28,29 @@ x-gitpreserver: &gitpreserver
     - SETUID
     - SETGID
 
+# Shared volume list reused across one-shot services (no rclone.conf required).
+x-backup-volumes: &backup-volumes
+  - ${GITPRESERVER_HOST_BACKUP_DIR:-./backups}:/backups
+
+# rclone.conf volume — falls back to /dev/null when the file is not provided,
+# giving rclone an empty config and letting env vars supply remote definitions.
+x-rclone-volume: &rclone-volume
+  - ${GITPRESERVER_RCLONE_CONFIG:-/dev/null}:/home/gitpreserver/.config/rclone/rclone.conf:ro
+
 services:
+
+  # -------------------------------------------------------------------------
+  # One-shot pipeline services (used by docker compose run / CI)
+  # -------------------------------------------------------------------------
 
   mirror:
     <<: *gitpreserver
-    volumes:
-      - ${GITPRESERVER_HOST_BACKUP_DIR:-./backups}:/backups
+    volumes: *backup-volumes
     command: ["mirror.sh"]
 
   metadata:
     <<: *gitpreserver
-    volumes:
-      - ${GITPRESERVER_HOST_BACKUP_DIR:-./backups}:/backups
+    volumes: *backup-volumes
     command: ["metadata.sh"]
     depends_on:
       mirror:
@@ -51,8 +60,26 @@ services:
     <<: *gitpreserver
     volumes:
       - ${GITPRESERVER_HOST_BACKUP_DIR:-./backups}:/backups
-      - ${GITPRESERVER_RCLONE_CONFIG:-./rclone/rclone.conf}:/home/gitpreserver/.config/rclone/rclone.conf:ro
+      - ${GITPRESERVER_RCLONE_CONFIG:-/dev/null}:/home/gitpreserver/.config/rclone/rclone.conf:ro
     command: ["sync.sh"]
     depends_on:
       metadata:
         condition: service_completed_successfully
+
+  # -------------------------------------------------------------------------
+  # Daemon service — stays running, runs backups on GITPRESERVER_SCHEDULE,
+  # and serves the web UI on port 6033 (configurable via GITPRESERVER_WEB_PORT).
+  #
+  # Start with:  docker compose up daemon
+  # -------------------------------------------------------------------------
+
+  daemon:
+    <<: *gitpreserver
+    volumes:
+      - ${GITPRESERVER_HOST_BACKUP_DIR:-./backups}:/backups
+      - ${GITPRESERVER_RCLONE_CONFIG:-/dev/null}:/home/gitpreserver/.config/rclone/rclone.conf:ro
+    environment:
+      GITPRESERVER_MODE: daemon
+    ports:
+      - "${GITPRESERVER_WEB_PORT:-6033}:${GITPRESERVER_WEB_PORT:-6033}"
+    restart: unless-stopped
