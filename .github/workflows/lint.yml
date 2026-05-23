@@ -45,6 +45,14 @@ jobs:
       - name: Run tests
         run: bats tests/
 
+  python-tests:
+    name: Python unit tests (webserver)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
   docker-build:
     name: Docker build smoke
     runs-on: ubuntu-latest
