@@ -47,4 +47,17 @@ if [[ -n "${UMASK:-}" ]]; then
     umask "${UMASK}"
 fi
 
-exec gosu gitpreserver:gitpreserver "$@"
+MODE="${GITPRESERVER_MODE:-oneshot}"
+
+case "${MODE}" in
+    oneshot)
+        exec gosu gitpreserver:gitpreserver "$@"
+        ;;
+    daemon)
+        exec gosu gitpreserver:gitpreserver daemon-start.sh
+        ;;
+    *)
+        log "ERROR: GITPRESERVER_MODE must be 'oneshot' or 'daemon' (got '${MODE}')."
+        exit 1
+        ;;
+esac

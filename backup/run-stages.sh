@@ -15,13 +15,35 @@ set -euo pipefail
 
 log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
+STATUS_FILE="${GITPRESERVER_STATUS_FILE:-/tmp/gitpreserver-status.json}"
+CURRENT_STAGE="init"
+
+write_status() {
+    local status="$1" message="$2"
+    jq -cn \
+        --arg s "${status}" \
+        --arg m "${message}" \
+        --arg t "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+        '{status:$s, last_run:$t, message:$m}' \
+        > "${STATUS_FILE}" 2>/dev/null || true
+}
+
+trap 'write_status "failed" "Pipeline aborted during: ${CURRENT_STAGE}"' ERR
+
+CURRENT_STAGE="mirror"
+write_status "running" "Stage 1/3: mirror"
 log "Stage 1/3: mirror"
 mirror.sh
 
+CURRENT_STAGE="metadata"
+write_status "running" "Stage 2/3: metadata"
 log "Stage 2/3: metadata"
 metadata.sh
 
+CURRENT_STAGE="sync"
+write_status "running" "Stage 3/3: sync"
 log "Stage 3/3: sync"
 sync.sh
 
+write_status "success" "All stages complete."
 log "All stages complete."
