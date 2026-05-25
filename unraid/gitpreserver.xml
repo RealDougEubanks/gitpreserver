@@ -12,9 +12,12 @@
     history, exports issues/PRs/releases as JSON, and (optionally) syncs encrypted backups to
     Backblaze B2, AWS S3, Google Drive, OneDrive, MEGA, SMB, or any rclone-supported destination.
 
-    GitPreserver runs as a one-shot batch job. Start the container to run a backup; the container
-    exits when finished. To run on a schedule, use the User Scripts plugin to invoke
-    `docker start GitPreserver` on a cron expression. See the project README for full setup.
+    Two run modes:
+    - oneshot (default): run a backup and exit. Trigger via User Scripts or docker start.
+    - daemon: stay running, run backups on an internal cron schedule, and serve a web status UI
+      on port 6033. Visit http://&lt;unraid-ip&gt;:6033/ to see last backup status and trigger a manual run.
+
+    See the project README and docs/daemon-mode.md for full setup.
   </Overview>
   <Category>Backup: Tools:</Category>
   <Icon>https://raw.githubusercontent.com/RealDougEubanks/gitpreserver/main/assets/icon.png</Icon>
@@ -40,6 +43,11 @@
   <Config Name="Backup Path" Target="/backups" Default="/mnt/user/appdata/gitpreserver/backups"
     Mode="rw" Description="Host path where dated backup snapshots are written. Each run creates a YYYY-MM-DD subdirectory containing repos/ and metadata/."
     Type="Path" Display="always" Required="true" Mask="false"/>
+
+  <!-- Run mode -->
+  <Config Name="Mode" Target="GITPRESERVER_MODE" Default="oneshot"
+    Mode="" Description="oneshot: run a backup and exit. daemon: stay running, back up on a schedule, and serve the web UI on port 6033."
+    Type="Variable" Display="always" Required="false" Mask="false"/>
 
   <!--
     rclone remote sync. Leave 'rclone Remote' blank to keep backups local only,
@@ -83,6 +91,18 @@
   <Config Name="UMASK" Target="UMASK" Default="022"
     Mode="" Description="File creation mask for backup files."
     Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="Schedule (daemon mode)" Target="GITPRESERVER_SCHEDULE" Default="0 2 * * 0"
+    Mode="" Description="Cron expression for automatic backups in daemon mode. Default: Sundays at 02:00. Ignored in oneshot mode."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="Web UI Port" Target="GITPRESERVER_WEB_PORT" Default="6033"
+    Mode="" Description="Port for the daemon-mode web status UI. Only active when Mode is 'daemon'."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <Config Name="Web UI" Target="6033" Default="6033"
+    Mode="tcp" Description="Status dashboard and manual backup trigger. Only active in daemon mode."
+    Type="Port" Display="advanced" Required="false" Mask="false"/>
 
   <!-- Operational toggles -->
   <Config Name="Log Level" Target="GITPRESERVER_LOG_LEVEL" Default="info"
