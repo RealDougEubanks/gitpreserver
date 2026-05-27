@@ -4,11 +4,11 @@ set -euo pipefail
 log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
 BACKUP_DIR="${GITPRESERVER_BACKUP_DIR:-/backups}"
-RCLONE_REMOTE="${GITPRESERVER_RCLONE_REMOTE:-}"
+RCLONE_REMOTES="${GITPRESERVER_RCLONE_REMOTE:-}"
 RCLONE_PATH="${GITPRESERVER_RCLONE_PATH:-gitpreserver-backups}"
 RCLONE_TRANSFERS="${GITPRESERVER_RCLONE_TRANSFERS:-4}"
 ENCRYPT="${GITPRESERVER_ENCRYPT:-false}"
-CRYPT_REMOTE="${GITPRESERVER_CRYPT_REMOTE:-}"
+CRYPT_REMOTES="${GITPRESERVER_CRYPT_REMOTE:-}"
 LOG_LEVEL="${GITPRESERVER_LOG_LEVEL:-info}"
 RETENTION_DAYS="${GITPRESERVER_RETENTION_DAYS:-30}"
 DRY_RUN="${GITPRESERVER_DRY_RUN:-false}"
@@ -25,46 +25,68 @@ fi
 
 # ---- Remote sync --------------------------------------------------------
 
-if [[ -z "${RCLONE_REMOTE}" ]]; then
+if [[ -z "${RCLONE_REMOTES}" ]]; then
     log "GITPRESERVER_RCLONE_REMOTE is not set -- skipping remote sync (local backup only)."
 else
+    RCLONE_LOG_LEVEL=$(printf '%s' "${LOG_LEVEL}" | tr '[:lower:]' '[:upper:]')
+
+    # Split comma-separated remote lists into arrays.
+    IFS=',' read -ra remote_list   <<< "${RCLONE_REMOTES}"
+    IFS=',' read -ra crypt_list    <<< "${CRYPT_REMOTES:-}"
+
+    # When encryption is enabled, require a crypt remote for every plain remote.
     if [[ "${ENCRYPT}" == "true" ]]; then
-        if [[ -z "${CRYPT_REMOTE}" ]]; then
+        if [[ -z "${CRYPT_REMOTES}" ]]; then
             log "ERROR: GITPRESERVER_ENCRYPT=true but GITPRESERVER_CRYPT_REMOTE is not set."
             exit 1
         fi
-        ACTIVE_REMOTE="${CRYPT_REMOTE}"
-    else
-        ACTIVE_REMOTE="${RCLONE_REMOTE}"
+        if (( ${#crypt_list[@]} != ${#remote_list[@]} )); then
+            log "ERROR: GITPRESERVER_CRYPT_REMOTE has ${#crypt_list[@]} entries but GITPRESERVER_RCLONE_REMOTE has ${#remote_list[@]}. They must match 1-to-1."
+            exit 1
+        fi
     fi
 
-    DEST="${ACTIVE_REMOTE}:${RCLONE_PATH}"
-    RCLONE_LOG_LEVEL=$(printf '%s' "${LOG_LEVEL}" | tr '[:lower:]' '[:upper:]')
+    for i in "${!remote_list[@]}"; do
+        remote="${remote_list[$i]}"
+        # Trim whitespace
+        remote="${remote#"${remote%%[![:space:]]*}"}"
+        remote="${remote%"${remote##*[![:space:]]}"}"
+        [[ -z "${remote}" ]] && continue
 
-    rclone_args=(
-        sync "${BACKUP_DIR}" "${DEST}"
-        --transfers="${RCLONE_TRANSFERS}"
-        --log-level="${RCLONE_LOG_LEVEL}"
-    )
+        if [[ "${ENCRYPT}" == "true" ]]; then
+            crypt="${crypt_list[$i]}"
+            crypt="${crypt#"${crypt%%[![:space:]]*}"}"
+            crypt="${crypt%"${crypt##*[![:space:]]}"}"
+            ACTIVE_REMOTE="${crypt}"
+        else
+            ACTIVE_REMOTE="${remote}"
+        fi
 
-    if [[ "${DRY_RUN}" == "true" ]]; then
-        log "DRY RUN: rclone sync ${BACKUP_DIR} -> ${DEST}"
-        rclone_args+=(--dry-run)
-    else
-        log "Syncing ${BACKUP_DIR} -> ${DEST}"
-    fi
+        DEST="${ACTIVE_REMOTE}:${RCLONE_PATH}"
 
-    rclone "${rclone_args[@]}"
+        rclone_args=(
+            sync "${BACKUP_DIR}" "${DEST}"
+            --transfers="${RCLONE_TRANSFERS}"
+            --log-level="${RCLONE_LOG_LEVEL}"
+        )
 
-    [[ "${DRY_RUN}" == "true" ]] || log "Sync complete."
+        if [[ "${DRY_RUN}" == "true" ]]; then
+            log "DRY RUN: rclone sync ${BACKUP_DIR} -> ${DEST}"
+            rclone_args+=(--dry-run)
+        else
+            log "Syncing ${BACKUP_DIR} -> ${DEST}"
+        fi
+
+        rclone "${rclone_args[@]}"
+
+        [[ "${DRY_RUN}" == "true" ]] || log "Sync to ${DEST} complete."
+    done
 fi
 
 # ---- Local retention pruning -------------------------------------------
 
 if (( RETENTION_DAYS > 0 )); then
     log "Pruning local snapshots older than ${RETENTION_DAYS} days"
-    # -print0 / read -d '' protects against unusual directory names.
-    # -maxdepth 1 keeps us out of the per-day repo contents.
     while IFS= read -r -d '' old_dir; do
         if [[ "${DRY_RUN}" == "true" ]]; then
             log "DRY RUN: would remove ${old_dir}"
