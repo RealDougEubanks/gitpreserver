@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Pre-uninstall cleanup for GitPreserver DSM package.
+# Removes the Task Scheduler entry created at post-install.
+
+TASK_NAME="GitPreserver Backup"
+
+if command -v synoschedtask &>/dev/null; then
+    synoschedtask --del --name "${TASK_NAME}" &>/dev/null || true
+    echo "Scheduled task '${TASK_NAME}' removed."
+fi
+
+exit 0

@@ -27,17 +27,30 @@
   <Beta>False</Beta>
 
   <!--
-    Personal Access Token. GitHub fine-grained PATs (github_pat_...) are recommended:
-      Repository permissions (Read): Contents, Metadata, Issues, Pull requests.
-      For org repos also add Organization permissions: Members (Read).
-    Classic PATs (ghp_...) work too: scopes 'repo' + 'read:user' (+ 'read:org' for orgs).
+    Git host selection. GitHub is the default.
+    For self-hosted GitLab or Gitea, also set the Host URL below.
+  -->
+  <Config Name="Git Host" Target="GITPRESERVER_HOST_TYPE" Default="github"
+    Mode="" Description="Which git hosting service to back up: github | bitbucket | gitlab | gitea"
+    Type="Variable" Display="always" Required="false" Mask="false"/>
+
+  <Config Name="Host URL (self-hosted only)" Target="GITPRESERVER_HOST_URL" Default=""
+    Mode="" Description="Base URL for self-hosted GitLab or Gitea (e.g. https://gitlab.mycompany.com). Leave blank for github.com, bitbucket.org, or gitlab.com."
+    Type="Variable" Display="advanced" Required="false" Mask="false"/>
+
+  <!--
+    Personal Access Token.
+    GitHub: fine-grained PAT (github_pat_...) with Contents, Metadata, Issues, Pull requests (Read).
+    Bitbucket: app password with Repositories (Read) and Issues (Read) scopes.
+    GitLab: personal access token with read_api scope.
+    Gitea: personal access token.
   -->
   <Config Name="Personal Access Token" Target="GITPRESERVER_TOKEN" Default=""
-    Mode="" Description="GitHub Personal Access Token. Fine-grained (github_pat_...) is recommended — see the project README for the exact least-privilege permissions."
+    Mode="" Description="Personal access token for your git host. GitHub: fine-grained PAT recommended. Bitbucket: app password. GitLab: personal access token with read_api scope."
     Type="Variable" Display="always" Required="true" Mask="true"/>
 
   <Config Name="Username or Org" Target="GITPRESERVER_USERNAME" Default=""
-    Mode="" Description="GitHub username or organization name to back up."
+    Mode="" Description="Username or organization name to back up on the selected git host."
     Type="Variable" Display="always" Required="true" Mask="false"/>
 
   <Config Name="Backup Path" Target="/backups" Default="/mnt/user/appdata/gitpreserver/backups"

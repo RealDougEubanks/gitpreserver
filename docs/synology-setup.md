@@ -2,7 +2,7 @@
 
 This guide covers installing GitPreserver on a Synology NAS running DSM 7.0 or later.
 
-> **Status:** The Synology SPK package is scaffolded but not yet submitted to SynoCommunity. Until it is available in Package Center, use the manual Docker setup below.
+> **Status:** The Synology SPK package is buildable locally (see Option B below) but not yet submitted to SynoCommunity. Until it is available in Package Center, use the manual Docker setup or build the SPK from source.
 
 ---
 
@@ -82,16 +82,38 @@ sudo ./run-backup.sh
 
 ---
 
-## Option B — SPK package (coming soon)
+## Option B — SPK package (build from source)
 
-Once submitted to SynoCommunity, the install will be:
+You can build and install the SPK directly without waiting for SynoCommunity listing.
 
-1. Open **Package Center → Settings → Package Sources**
-2. Add `https://packages.synocommunity.com` if not already present
-3. Search for **GitPreserver** in Package Center
-4. Click **Install** and follow the wizard
+### Build
 
-The wizard collects your token, username, backup path, and schedule. Remote sync and encryption must be configured manually in the `.env` file at `/var/packages/gitpreserver/target/.env` after install.
+On any machine with bash and tar:
+
+```bash
+git clone https://github.com/RealDougEubanks/gitpreserver.git
+cd gitpreserver
+./synology/build-spk.sh
+# Output: synology/dist/gitpreserver-1.1.0-1.spk
+```
+
+### Install
+
+1. Open **Package Center → Manual Install**
+2. Upload `gitpreserver-1.1.0-1.spk`
+3. Follow the wizard — it collects:
+   - Git host (GitHub / Bitbucket / GitLab / Gitea)
+   - Self-hosted URL (if applicable)
+   - Username / org
+   - Personal access token
+   - Backup path
+   - Schedule
+
+Remote sync and encryption must be configured manually in the `.env` file at `/var/packages/gitpreserver/target/.env` after install. See [configuration.md](configuration.md) for all available variables.
+
+### SynoCommunity (coming soon)
+
+Once accepted, the install will be available directly from Package Center by adding `https://packages.synocommunity.com` as a package source.
 
 ---
 
