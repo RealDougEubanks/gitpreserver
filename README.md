@@ -7,8 +7,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/dougeubanks/gitpreserver)](https://hub.docker.com/r/dougeubanks/gitpreserver)
-[![GitHub release](https://img.shields.io/github/v/release/dougeubanks/gitpreserver)](https://github.com/dougeubanks/gitpreserver/releases)
-[![shellcheck](https://github.com/dougeubanks/gitpreserver/actions/workflows/lint.yml/badge.svg)](https://github.com/dougeubanks/gitpreserver/actions/workflows/lint.yml)
+[![GitHub release](https://img.shields.io/github/v/release/RealDougEubanks/gitpreserver)](https://github.com/RealDougEubanks/gitpreserver/releases)
+[![shellcheck](https://github.com/RealDougEubanks/gitpreserver/actions/workflows/lint.yml/badge.svg)](https://github.com/RealDougEubanks/gitpreserver/actions/workflows/lint.yml)
 
 ---
 
