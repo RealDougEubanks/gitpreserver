@@ -32,7 +32,7 @@ ssh admin@your-nas-ip
 ```bash
 sudo mkdir -p /volume1/docker/gitpreserver
 cd /volume1/docker/gitpreserver
-sudo git clone https://github.com/dougeubanks/gitpreserver.git .
+sudo git clone https://github.com/RealDougEubanks/gitpreserver.git .
 ```
 
 ### 3. Configure
