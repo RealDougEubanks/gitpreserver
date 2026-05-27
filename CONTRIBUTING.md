@@ -6,7 +6,7 @@ Thanks for taking the time to contribute. This document covers how to report iss
 
 ## Reporting bugs
 
-Search [existing issues](https://github.com/dougeubanks/gitpreserver/issues) before opening a new one — your bug may already be tracked.
+Search [existing issues](https://github.com/RealDougEubanks/gitpreserver/issues) before opening a new one — your bug may already be tracked.
 
 When filing a bug report, include:
 - GitPreserver version (`git describe --tags`)
@@ -50,7 +50,7 @@ You need:
 - A GitHub token for integration testing (minimum `repo` + `read:user` scopes)
 
 ```bash
-git clone https://github.com/dougeubanks/gitpreserver.git
+git clone https://github.com/RealDougEubanks/gitpreserver.git
 cd gitpreserver
 cp config/.env.example .env
 # fill in GITPRESERVER_TOKEN and GITPRESERVER_USERNAME in .env
@@ -81,7 +81,19 @@ GitPreserver's scripts are plain Bash. Keep them readable and auditable.
 
 ## Testing
 
-There is no automated test suite yet (tracked in the roadmap). When adding or changing a script:
+The test suite lives in `tests/`. There are two runners:
+
+```bash
+# Shell script tests (requires bats-core and jq)
+bats tests/
+
+# Webserver unit tests (requires Python 3)
+python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+Install bats on macOS: `brew install bats-core`. On Debian/Ubuntu: `apt-get install bats jq`.
+
+When adding or changing a script, also:
 
 1. Run it with `GITPRESERVER_DRY_RUN=true` first.
 2. Run it against a test account with a small number of repos.

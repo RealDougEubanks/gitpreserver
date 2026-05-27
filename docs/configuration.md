@@ -71,7 +71,7 @@ See [encryption.md](encryption.md) for full setup instructions.
 
 | Variable | Default | Description |
 |---|---|---|
-| `GITPRESERVER_SCHEDULE` | `0 2 * * 0` | Cron expression used by Synology and unRAID integrations. |
+| `GITPRESERVER_SCHEDULE` | `0 2 * * 0` | Cron expression. Used internally by daemon mode and as a reference for external schedulers (cron, Synology Task Scheduler, unRAID User Scripts). |
 
 ### Advanced
 

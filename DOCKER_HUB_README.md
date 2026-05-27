@@ -1,11 +1,11 @@
 # GitPreserver
 
-<img src="assets/icon-128.png" alt="GitPreserver" width="80" align="right"/>
+<img src="https://github.com/RealDougEubanks/gitpreserver/blob/main/assets/icon-128.png?raw=true" alt="GitPreserver" width="80">
 
 > A life preserver for your git repositories.
 > Mirror your code, preserve your history, survive the flood.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/RealDougEubanks/gitpreserver/blob/main/LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/dougeubanks/gitpreserver)](https://hub.docker.com/r/dougeubanks/gitpreserver)
 [![GitHub release](https://img.shields.io/github/v/release/RealDougEubanks/gitpreserver)](https://github.com/RealDougEubanks/gitpreserver/releases)
 [![shellcheck](https://github.com/RealDougEubanks/gitpreserver/actions/workflows/lint.yml/badge.svg)](https://github.com/RealDougEubanks/gitpreserver/actions/workflows/lint.yml)
@@ -40,7 +40,7 @@ GitHub suffered over 257 incidents between May 2025 and April 2026. If you've in
 ### Prerequisites
 
 - Docker and Docker Compose
-- A GitHub Personal Access Token — fine-grained (recommended) with **Contents**, **Metadata**, **Issues**, and **Pull requests** set to **Read**, or classic with `repo` + `read:user` scopes. See [docs/setup.md](docs/setup.md#step-2--create-a-personal-access-token) for details.
+- A GitHub Personal Access Token — fine-grained (recommended) with **Contents**, **Metadata**, **Issues**, and **Pull requests** set to **Read**, or classic with `repo` + `read:user` scopes
 - An rclone-supported storage destination (or use local-only mode)
 
 ### 1. Clone the repo
@@ -59,13 +59,13 @@ cp config/.env.example .env
 Edit `.env` and set at minimum:
 
 ```bash
-GITPRESERVER_TOKEN=github_pat_your_token_here   # or ghp_… for a classic PAT
+GITPRESERVER_TOKEN=github_pat_your_token_here
 GITPRESERVER_USERNAME=your_github_username
 ```
 
-To sync offsite, also set `GITPRESERVER_RCLONE_REMOTE` to a remote configured in `rclone/rclone.conf`. See [docs/storage-backends.md](docs/storage-backends.md).
+To sync offsite, set `GITPRESERVER_RCLONE_REMOTE` to a remote configured in `rclone/rclone.conf`.
 
-The container runs as a non-root user (UID/GID 1000 by default). If your host user is a different UID, set `PUID` and `PGID` in `.env`:
+The container runs as a non-root user (UID/GID 1000 by default). If your host user differs, set `PUID` and `PGID` in `.env`:
 
 ```bash
 echo "PUID=$(id -u)" >> .env
@@ -76,13 +76,9 @@ echo "PGID=$(id -g)" >> .env
 
 ```bash
 ./run-backup.sh                                  # full run using .env
-./run-backup.sh /mnt/backup/github --no-sync     # local-only one-off
+./run-backup.sh /mnt/backup/github --no-sync     # local-only, no rclone
 ./run-backup.sh --dry-run                        # validate config, write nothing
 ```
-
-`./run-backup.sh` mirror-clones your repos, exports metadata, and syncs to your configured remote. Backups land in `./backups/YYYY-MM-DD/` by default, or in the path you pass as the first argument.
-
-Pass `--no-sync` to skip rclone entirely — useful for backing up to a NAS share, external disk, or any path on the host without configuring a remote.
 
 ### 4. Schedule it
 
@@ -90,7 +86,7 @@ Pass `--no-sync` to skip rclone entirely — useful for backing up to a NAS shar
 crontab -e
 ```
 
-Add the example from `cron/crontab.example` — by default, Sundays at 2 AM:
+Add a line — by default, Sundays at 2 AM:
 
 ```
 0 2 * * 0  cd /opt/gitpreserver && ./run-backup.sh >> /var/log/gitpreserver.log 2>&1
@@ -100,19 +96,17 @@ Add the example from `cron/crontab.example` — by default, Sundays at 2 AM:
 
 ## Platform support
 
-| Platform | Status | Guide |
-|---|---|---|
-| Linux / macOS (Docker) | Ready | [docs/setup.md](docs/setup.md) |
-| Synology DSM 7+ | Scaffolded | [docs/synology-setup.md](docs/synology-setup.md) |
-| unRAID | Scaffolded | [docs/unraid-setup.md](docs/unraid-setup.md) |
+| Platform | Status |
+|---|---|
+| Linux / macOS (Docker) | Ready |
+| Synology DSM 7+ | Scaffolded |
+| unRAID | Scaffolded |
 
 ---
 
 ## Configuration
 
-All settings use environment variables prefixed `GITPRESERVER_`. Copy `config/.env.example` to `.env` and edit — the file is fully commented.
-
-A subset of the most common variables:
+All settings use environment variables prefixed `GITPRESERVER_`. Copy `config/.env.example` to `.env` — the file is fully commented.
 
 | Variable | Default | Description |
 |---|---|---|
@@ -126,7 +120,7 @@ A subset of the most common variables:
 | `GITPRESERVER_SCHEDULE` | `0 2 * * 0` | Cron expression |
 | `GITPRESERVER_DRY_RUN` | `false` | No writes, no sync |
 
-Full reference: [docs/configuration.md](docs/configuration.md)
+Full reference: [docs/configuration.md](https://github.com/RealDougEubanks/gitpreserver/blob/main/docs/configuration.md)
 
 ---
 
@@ -136,15 +130,15 @@ Any rclone remote works — configure it in `rclone/rclone.conf` and point `GITP
 
 Recommended default: **Backblaze B2** (~$0.006/GB/month, no egress fees to rclone).
 
-See [docs/storage-backends.md](docs/storage-backends.md) for annotated setup guides for B2, S3, MEGA, Google Drive, SMB/NFS, and more.
+See [docs/storage-backends.md](https://github.com/RealDougEubanks/gitpreserver/blob/main/docs/storage-backends.md) for setup guides covering B2, S3, MEGA, Google Drive, SMB/NFS, and more.
 
 ---
 
 ## Encryption
 
-Backups can be encrypted at rest using rclone crypt (AES-256-CTR). Set `GITPRESERVER_ENCRYPT=true` and configure a crypt remote in `rclone.conf`. Store your passphrase in a password manager — there is no key escrow.
+Set `GITPRESERVER_ENCRYPT=true` and configure a crypt remote in `rclone.conf`. Backups are encrypted with AES-256-CTR via rclone crypt. Store your passphrase in a password manager — there is no key escrow.
 
-See [docs/encryption.md](docs/encryption.md).
+See [docs/encryption.md](https://github.com/RealDougEubanks/gitpreserver/blob/main/docs/encryption.md).
 
 ---
 
@@ -160,7 +154,7 @@ git push --mirror new-origin
 
 Issues, PRs, and releases are JSON files in `backups/YYYY-MM-DD/metadata/`.
 
-Full restore guide: [docs/restoring.md](docs/restoring.md)
+Full restore guide: [docs/restoring.md](https://github.com/RealDougEubanks/gitpreserver/blob/main/docs/restoring.md)
 
 ---
 
@@ -171,25 +165,19 @@ Full restore guide: [docs/restoring.md](docs/restoring.md)
 | 1 | GitHub (user + org accounts) | In progress |
 | 2 | Bitbucket and GitLab | Planned |
 | 3 | Gitea, Forgejo, generic git hosts | Planned |
-| — | Synology SPK (SynoCommunity submission) | Scaffolded |
+| — | Synology SPK | Scaffolded |
 | — | unRAID Community Applications | Scaffolded |
 | — | Multiple simultaneous destinations | Planned |
-| — | Webhook notifications on completion/failure | Planned |
-
----
-
-## Contributing
-
-Bug reports, feature requests, and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md).
+| — | Webhook notifications | Planned |
 
 ---
 
 ## Credits
 
-GitPreserver bundles [ghorg](https://github.com/gabrie30/ghorg), [gh](https://github.com/cli/cli), [rclone](https://github.com/rclone/rclone), [tini](https://github.com/krallin/tini), [jq](https://github.com/jqlang/jq), and [git](https://git-scm.com/) on a [Debian](https://www.debian.org/) base image. Tests and CI use [bats-core](https://github.com/bats-core/bats-core), [ShellCheck](https://github.com/koalaman/shellcheck), [hadolint](https://github.com/hadolint/hadolint), and [gitleaks](https://github.com/gitleaks/gitleaks). See [CREDITS.md](CREDITS.md) for full attribution and licenses.
+Bundles [ghorg](https://github.com/gabrie30/ghorg), [gh](https://github.com/cli/cli), [rclone](https://github.com/rclone/rclone), [tini](https://github.com/krallin/tini), [jq](https://github.com/jqlang/jq), and [git](https://git-scm.com/) on a Debian base image. See [CREDITS.md](https://github.com/RealDougEubanks/gitpreserver/blob/main/CREDITS.md) for full attribution.
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+[MIT](https://github.com/RealDougEubanks/gitpreserver/blob/main/LICENSE)

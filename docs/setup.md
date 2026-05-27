@@ -21,7 +21,7 @@ For unRAID, see [unraid-setup.md](unraid-setup.md).
 ## Step 1 — Clone the repo
 
 ```bash
-git clone https://github.com/dougeubanks/gitpreserver.git /opt/gitpreserver
+git clone https://github.com/RealDougEubanks/gitpreserver.git /opt/gitpreserver
 cd /opt/gitpreserver
 ```
 
