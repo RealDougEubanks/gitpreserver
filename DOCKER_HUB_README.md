@@ -1,6 +1,6 @@
 # GitPreserver
 
-<img src="https://github.com/RealDougEubanks/gitpreserver/blob/main/assets/icon-128.png?raw=true" alt="GitPreserver" width="80">
+<p><img src="https://github.com/RealDougEubanks/gitpreserver/blob/main/assets/icon-128.png?raw=true" alt="GitPreserver" width="80"></p>
 
 *A life preserver for your git repositories. Mirror your code, preserve your history, survive the flood.*
 
