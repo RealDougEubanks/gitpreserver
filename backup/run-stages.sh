@@ -28,7 +28,12 @@ write_status() {
         > "${STATUS_FILE}" 2>/dev/null || true
 }
 
-trap 'write_status "failed" "Pipeline aborted during: ${CURRENT_STAGE}"' ERR
+on_error() {
+    local msg="Pipeline aborted during: ${CURRENT_STAGE}"
+    write_status "failed" "${msg}"
+    notify.sh "failed" "${msg}" || true
+}
+trap 'on_error' ERR
 
 CURRENT_STAGE="mirror"
 write_status "running" "Stage 1/3: mirror"
@@ -47,3 +52,4 @@ sync.sh
 
 write_status "success" "All stages complete."
 log "All stages complete."
+notify.sh "success" "All stages complete." || true
