@@ -18,13 +18,30 @@
           },
           {
             "key": "pkgwizard_host_type",
-            "displayText": "GitLab",
+            "displayText": "GitLab (gitlab.com)",
             "defaultValue": "gitlab"
           },
           {
             "key": "pkgwizard_host_type",
-            "displayText": "Gitea / Self-hosted",
+            "displayText": "GitLab (self-hosted)",
+            "defaultValue": "gitlab"
+          },
+          {
+            "key": "pkgwizard_host_type",
+            "displayText": "Gitea / Forgejo (self-hosted)",
             "defaultValue": "gitea"
+          }
+        ]
+      },
+      {
+        "type": "textfield",
+        "desc": "Self-hosted instance URL (leave blank for github.com, bitbucket.org, or gitlab.com)",
+        "subitems": [
+          {
+            "key": "pkgwizard_host_url",
+            "desc": "Host URL",
+            "defaultValue": "",
+            "emptyText": "e.g. https://gitlab.mycompany.com"
           }
         ]
       },
@@ -42,7 +59,7 @@
       },
       {
         "type": "password",
-        "desc": "Personal Access Token (requires repo and read:user scopes on GitHub)",
+        "desc": "Personal Access Token. GitHub: fine-grained PAT with repo read permissions. Bitbucket: app password with Repositories and Issues (Read). GitLab: personal access token with read_api scope.",
         "subitems": [
           {
             "key": "pkgwizard_token",
@@ -100,7 +117,7 @@
     "items": [
       {
         "type": "textfield",
-        "desc": "GitPreserver is ready to install. After installation, configure remote sync and encryption in the .env file at /var/packages/gitpreserver/target/.env. See the documentation at https://gitpreserver.com for details.",
+        "desc": "GitPreserver is ready to install. After installation, configure remote sync and encryption in the .env file at /var/packages/gitpreserver/target/.env. See the documentation at https://github.com/RealDougEubanks/gitpreserver for details.",
         "subitems": []
       }
     ]

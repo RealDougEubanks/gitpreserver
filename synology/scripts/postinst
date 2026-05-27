@@ -2,8 +2,13 @@
 # Post-install setup for GitPreserver DSM package.
 # Reads wizard values written to /tmp/gitpreserver_wizard_* by the install wizard.
 
+set -euo pipefail
+
 PKG_DIR="/var/packages/gitpreserver/target"
 ENV_FILE="${PKG_DIR}/.env"
+TASK_NAME="GitPreserver Backup"
+RUN_SCRIPT="${PKG_DIR}/run-backup.sh"
+LOG_FILE="/var/log/gitpreserver.log"
 
 load_wizard_value() {
     local key="$1"
@@ -11,13 +16,27 @@ load_wizard_value() {
     [[ -f "${file}" ]] && cat "${file}" || echo ""
 }
 
-# Write .env from wizard values
+HOST_TYPE=$(load_wizard_value host_type)
+HOST_URL=$(load_wizard_value host_url)
+USERNAME=$(load_wizard_value username)
+TOKEN=$(load_wizard_value token)
+BACKUP_DIR=$(load_wizard_value backup_dir)
+SCHEDULE=$(load_wizard_value schedule)
+
+# Defaults
+HOST_TYPE="${HOST_TYPE:-github}"
+BACKUP_DIR="${BACKUP_DIR:-/volume1/gitpreserver-backups}"
+
+mkdir -p "${BACKUP_DIR}"
+mkdir -p "${PKG_DIR}"
+
+# Write .env from wizard values — token goes in as-is (600 permissions below)
 cat > "${ENV_FILE}" <<EOF
-GITPRESERVER_TOKEN=$(load_wizard_value token)
-GITPRESERVER_USERNAME=$(load_wizard_value username)
-GITPRESERVER_HOST_TYPE=$(load_wizard_value host_type)
-GITPRESERVER_BACKUP_DIR=$(load_wizard_value backup_dir)
-GITPRESERVER_SCHEDULE=$(load_wizard_value schedule)
+GITPRESERVER_HOST_TYPE=${HOST_TYPE}
+GITPRESERVER_HOST_URL=${HOST_URL}
+GITPRESERVER_TOKEN=${TOKEN}
+GITPRESERVER_USERNAME=${USERNAME}
+GITPRESERVER_BACKUP_DIR=${BACKUP_DIR}
 GITPRESERVER_LOG_LEVEL=info
 GITPRESERVER_DRY_RUN=false
 GITPRESERVER_ENCRYPT=false
@@ -29,13 +48,40 @@ EOF
 chmod 600 "${ENV_FILE}"
 
 # Pull the Docker image
-docker pull dougeubanks/gitpreserver:latest
+if docker pull dougeubanks/gitpreserver:latest; then
+    echo "Docker image pulled successfully."
+else
+    echo "WARNING: could not pull Docker image. GitPreserver will pull on first run."
+fi
 
-# Register the scheduled task in Task Scheduler
-# (Actual DSM Task Scheduler API calls go here — implementation depends on DSM version)
-echo "GitPreserver installed. Configure your schedule in DSM → Control Panel → Task Scheduler."
+# Register a DSM Task Scheduler entry when a schedule was chosen.
+# synoschedtask is available on DSM 7.0+ and creates a user-defined script task.
+# When the wizard chose "Manual only" the schedule is empty — skip registration.
+if [[ -n "${SCHEDULE}" ]] && command -v synoschedtask &>/dev/null; then
+    # Remove any existing task with this name to avoid duplicates on reinstall.
+    synoschedtask --del --name "${TASK_NAME}" &>/dev/null || true
+
+    # Build cron fields from the schedule expression (minute hour dom month dow).
+    read -r cron_min cron_hour cron_dom cron_month cron_dow <<<"${SCHEDULE}"
+
+    synoschedtask --add \
+        --name "${TASK_NAME}" \
+        --type script \
+        --user root \
+        --min "${cron_min}" \
+        --hour "${cron_hour}" \
+        --day "${cron_dom}" \
+        --month "${cron_month}" \
+        --weekday "${cron_dow}" \
+        --command "\"${RUN_SCRIPT}\" >> \"${LOG_FILE}\" 2>&1"
+
+    echo "Scheduled task '${TASK_NAME}' registered (${SCHEDULE})."
+else
+    echo "No schedule configured. Run backups manually via DSM → Control Panel → Task Scheduler."
+fi
 
 # Clean up wizard temp files
 rm -f /tmp/gitpreserver_wizard_*
 
+echo "GitPreserver ${VERSION:-1.1.0} installed successfully."
 exit 0
