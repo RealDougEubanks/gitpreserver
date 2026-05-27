@@ -2,8 +2,7 @@
 
 <img src="https://github.com/RealDougEubanks/gitpreserver/blob/main/assets/icon-128.png?raw=true" alt="GitPreserver" width="80">
 
-> A life preserver for your git repositories.
-> Mirror your code, preserve your history, survive the flood.
+*A life preserver for your git repositories. Mirror your code, preserve your history, survive the flood.*
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/RealDougEubanks/gitpreserver/blob/main/LICENSE)
 [![Docker Pulls](https://img.shields.io/docker/pulls/dougeubanks/gitpreserver)](https://hub.docker.com/r/dougeubanks/gitpreserver)
