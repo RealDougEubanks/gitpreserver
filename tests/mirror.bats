@@ -128,6 +128,45 @@ SHIM
     ! grep -qE '^--output-dir=.*/' "${BATS_TEST_TMPDIR}/ghorg-args"
 }
 
+@test "mirror.sh: rejects an invalid GITPRESERVER_HOST_URL" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+    cat > "${shim_dir}/ghorg" <<SHIM
+#!/usr/bin/env bash
+touch "${BATS_TEST_TMPDIR}/ghorg-ran"
+SHIM
+    chmod +x "${shim_dir}/ghorg"
+    export PATH="${shim_dir}:${PATH}"
+
+    export GITPRESERVER_TOKEN=ghp_dummy
+    export GITPRESERVER_USERNAME=alice
+    export GITPRESERVER_HOST_TYPE=gitea
+    export GITPRESERVER_HOST_URL='https://git.example.com; rm -rf /'
+    run "${REPO_ROOT}/backup/mirror.sh"
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"not a valid http(s) URL"* ]]
+    [ ! -e "${BATS_TEST_TMPDIR}/ghorg-ran" ]
+}
+
+@test "mirror.sh: accepts a valid GITPRESERVER_HOST_URL" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+    cat > "${shim_dir}/ghorg" <<SHIM
+#!/usr/bin/env bash
+printf '%s\n' "\$@" > "${BATS_TEST_TMPDIR}/ghorg-args"
+SHIM
+    chmod +x "${shim_dir}/ghorg"
+    export PATH="${shim_dir}:${PATH}"
+
+    export GITPRESERVER_TOKEN=ghp_dummy
+    export GITPRESERVER_USERNAME=alice
+    export GITPRESERVER_HOST_TYPE=gitea
+    export GITPRESERVER_HOST_URL='https://git.example.com:3000'
+    run "${REPO_ROOT}/backup/mirror.sh"
+    [ "${status}" -eq 0 ]
+    grep -qx -- '--base-url=https://git.example.com:3000' "${BATS_TEST_TMPDIR}/ghorg-args"
+}
+
 @test "mirror.sh: accepts dotted usernames like 'my.org'" {
     export GITPRESERVER_TOKEN=ghp_dummy
     export GITPRESERVER_USERNAME='my.org'

@@ -128,6 +128,64 @@ SHIM
     ! grep -q "^s3:" "${BATS_TEST_TMPDIR}/rclone-calls"
 }
 
+@test "sync.sh: one failing remote does not stop the others, pruning still runs, exit non-zero" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+    # rclone shim: record the destination; fail only for the s3-fail remote.
+    cat > "${shim_dir}/rclone" <<'SHIM'
+#!/usr/bin/env bash
+dest=""
+for arg in "$@"; do
+    [[ "${arg}" == *:* ]] && dest="${arg}"
+done
+printf '%s\n' "${dest}" >> "${BATS_TEST_TMPDIR}/rclone-calls"
+if [[ "${dest}" == s3-fail:* ]]; then
+    echo "simulated rclone failure" >&2
+    exit 1
+fi
+exit 0
+SHIM
+    chmod +x "${shim_dir}/rclone"
+    export PATH="${shim_dir}:${PATH}"
+
+    # Middle remote (#2) fails; #1 and #3 must still be attempted.
+    export GITPRESERVER_RCLONE_REMOTE="b2-ok,s3-fail,gdrive-ok"
+    export GITPRESERVER_RETENTION_DAYS=0
+
+    run "${REPO_ROOT}/backup/sync.sh"
+    [ "${status}" -ne 0 ]
+    grep -q "^b2-ok:" "${BATS_TEST_TMPDIR}/rclone-calls"
+    grep -q "^s3-fail:" "${BATS_TEST_TMPDIR}/rclone-calls"
+    grep -q "^gdrive-ok:" "${BATS_TEST_TMPDIR}/rclone-calls"
+    [[ "${output}" == *"ERROR: rclone sync to s3-fail:"* ]]
+    [[ "${output}" == *"remote(s) failed to sync: s3-fail"* ]]
+    # Retention pruning block ran despite the failure.
+    [[ "${output}" == *"Retention pruning disabled"* ]]
+}
+
+@test "sync.sh: failing remote with active pruning still prunes old snapshots" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+    cat > "${shim_dir}/rclone" <<'SHIM'
+#!/usr/bin/env bash
+echo "simulated rclone failure" >&2
+exit 1
+SHIM
+    chmod +x "${shim_dir}/rclone"
+    export PATH="${shim_dir}:${PATH}"
+
+    mkdir -p "${GITPRESERVER_BACKUP_DIR}/2020-01-01/repos"
+    touch -t 200001010000 "${GITPRESERVER_BACKUP_DIR}/2020-01-01"
+
+    export GITPRESERVER_RCLONE_REMOTE="b2-fail"
+    export GITPRESERVER_RETENTION_DAYS=7
+
+    run "${REPO_ROOT}/backup/sync.sh"
+    [ "${status}" -ne 0 ]
+    # Pruning ran even though the remote failed.
+    [ ! -d "${GITPRESERVER_BACKUP_DIR}/2020-01-01" ]
+}
+
 @test "sync.sh: retention pruning leaves recent snapshots intact" {
     mkdir -p "${GITPRESERVER_BACKUP_DIR}/2020-01-01/repos"
     mkdir -p "${GITPRESERVER_BACKUP_DIR}/2099-12-31/repos"

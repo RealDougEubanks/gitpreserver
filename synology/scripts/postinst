@@ -10,6 +10,17 @@ TASK_NAME="GitPreserver Backup"
 RUN_SCRIPT="${PKG_DIR}/run-backup.sh"
 LOG_FILE="/var/log/gitpreserver.log"
 
+# Package version is recorded in the installed INFO. Derive the Docker image
+# tag from it so the pulled image always matches the installed SPK. The
+# x.y.z part of the Synology version (x.y.z-N) is the upstream release tag.
+PKG_INFO="/var/packages/gitpreserver/INFO"
+PKG_VERSION="2.0.0-1"
+if [[ -f "${PKG_INFO}" ]]; then
+    PKG_VERSION=$(grep '^version=' "${PKG_INFO}" | cut -d'"' -f2)
+fi
+IMAGE_TAG="${PKG_VERSION%%-*}"
+DOCKER_IMAGE="dougeubanks/gitpreserver:${IMAGE_TAG}"
+
 load_wizard_value() {
     local key="$1"
     local file="/tmp/gitpreserver_wizard_${key}"
@@ -48,7 +59,7 @@ EOF
 chmod 600 "${ENV_FILE}"
 
 # Pull the Docker image
-if docker pull dougeubanks/gitpreserver:latest; then
+if docker pull "${DOCKER_IMAGE}"; then
     echo "Docker image pulled successfully."
 else
     echo "WARNING: could not pull Docker image. GitPreserver will pull on first run."
@@ -83,5 +94,5 @@ fi
 # Clean up wizard temp files
 rm -f /tmp/gitpreserver_wizard_*
 
-echo "GitPreserver ${VERSION:-1.1.0} installed successfully."
+echo "GitPreserver ${PKG_VERSION} installed successfully."
 exit 0

@@ -5,6 +5,9 @@ on:
     tags:
       - "v*.*.*"
 
+permissions:
+  contents: write # required to create the GitHub Release
+
 jobs:
   docker:
     name: Build and push Docker image
@@ -30,10 +33,12 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: dougeubanks/gitpreserver
+          # On a tag push {{is_default_branch}} is never true, so the old
+          # latest rule never fired. Tag `latest` on any semver tag instead.
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -46,3 +51,44 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Sync Docker Hub repository description
+        # Pushes DOCKER_HUB_README.md (repo root) to the Docker Hub repo page.
+        # Reuses the same Docker Hub credentials used for the image push above.
+        uses: peter-evans/dockerhub-description@432a30c9e07499fd01da9f8a49f0faf9e0ca5b77 # v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: dougeubanks/gitpreserver
+          readme-filepath: ./DOCKER_HUB_README.md
+
+      - name: Extract release notes from CHANGELOG.md
+        id: notes
+        # Pull the section for the pushed tag (e.g. "## [1.2.3]" or "## 1.2.3")
+        # out of CHANGELOG.md. If no matching section is found, leave the body
+        # empty so the release step falls back to auto-generated notes.
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          notes_file="$(mktemp)"
+          awk -v ver="$version" '
+            $0 ~ ("^##[[:space:]]+\\[?" ver "\\]?") { capture=1; next }
+            capture && /^##[[:space:]]/ { exit }
+            capture { print }
+          ' CHANGELOG.md > "$notes_file" || true
+          {
+            echo "file=$notes_file"
+            if [ -s "$notes_file" ]; then
+              echo "found=true"
+            else
+              echo "found=false"
+            fi
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          # Use CHANGELOG section when found; otherwise auto-generate notes.
+          body_path: ${{ steps.notes.outputs.found == 'true' && steps.notes.outputs.file || '' }}
+          generate_release_notes: ${{ steps.notes.outputs.found != 'true' }}
+          fail_on_unmatched_files: false

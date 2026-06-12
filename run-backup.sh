@@ -24,7 +24,10 @@ cd "${SCRIPT_DIR}"
 
 LOCK_FILE="${GITPRESERVER_LOCK_FILE:-${SCRIPT_DIR}/.gitpreserver.lock}"
 
-log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
+# Component label for the structured logger: this wrapper lives at the repo
+# root, so derive a name explicitly rather than from the script path.
+GITPRESERVER_LOG_COMPONENT="run-backup"
+source "${SCRIPT_DIR}/backup/lib/log.sh"
 
 usage() {
     cat <<'EOF'
@@ -79,12 +82,12 @@ while [[ $# -gt 0 ]]; do
             break
             ;;
         -*)
-            log "ERROR: unknown option '$1'. Try --help."
+            log_error "ERROR: unknown option '$1'. Try --help."
             exit 2
             ;;
         *)
             if [[ -n "${DEST_PATH}" ]]; then
-                log "ERROR: more than one destination path given ('${DEST_PATH}' and '$1')."
+                log_error "ERROR: more than one destination path given ('${DEST_PATH}' and '$1')."
                 exit 2
             fi
             DEST_PATH="$1"
@@ -100,7 +103,7 @@ if [[ -n "${DEST_PATH}" ]]; then
     mkdir -p "${DEST_PATH}"
     DEST_PATH="$(cd "${DEST_PATH}" && pwd)"
     export GITPRESERVER_HOST_BACKUP_DIR="${DEST_PATH}"
-    log "Backup destination: ${DEST_PATH}"
+    log_info "Backup destination: ${DEST_PATH}"
 fi
 
 # Honor either the CLI flag or the shell environment variable. Shell env
@@ -135,12 +138,12 @@ compose_run_args() {
 }
 
 run_pipeline() {
-    log "Starting backup run (pid $$)"
+    log_info "Starting backup run (pid $$)"
     # Build once up front so all three stages share a freshly built image.
     # Docker's layer cache makes this near-instant when nothing changed;
     # without it, edits to backup/*.sh or docker/Dockerfile silently run
     # the previously-built image and look like the change had no effect.
-    log "Ensuring image is up to date (docker compose build)"
+    log_info "Ensuring image is up to date (docker compose build)"
     docker compose build --quiet
     compose_run_args mirror
     compose_run_args metadata
@@ -150,7 +153,7 @@ run_pipeline() {
         # the user may not have configured. Run sync.sh under the mirror
         # service (same image, no rclone.conf mount) with an empty remote
         # so only the retention-prune step executes.
-        log "Skipping rclone sync (--no-sync); running retention prune only."
+        log_info "Skipping rclone sync (--no-sync); running retention prune only."
         compose_run_args \
             -e GITPRESERVER_RCLONE_REMOTE= \
             --entrypoint sync.sh \
@@ -159,7 +162,7 @@ run_pipeline() {
         compose_run_args sync
     fi
 
-    log "Backup run complete"
+    log_info "Backup run complete"
 }
 
 # Re-exec under flock unless we already hold the lock. -n exits immediately
@@ -167,7 +170,7 @@ run_pipeline() {
 # later" to cron mail handlers without flagging a hard error.
 if [[ "${GITPRESERVER_LOCKED:-}" != "1" ]]; then
     if ! command -v flock >/dev/null 2>&1; then
-        log "WARNING: flock not found on PATH; running without overlap protection."
+        log_warn "WARNING: flock not found on PATH; running without overlap protection."
         run_pipeline
         exit 0
     fi

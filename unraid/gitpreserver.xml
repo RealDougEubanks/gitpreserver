@@ -5,7 +5,8 @@
   <Registry>https://hub.docker.com/r/dougeubanks/gitpreserver</Registry>
   <Network>bridge</Network>
   <Privileged>false</Privileged>
-  <Support>https://forums.unraid.net/topic/gitpreserver</Support>
+  <!-- TODO: update to the unRAID forum thread URL (https://forums.unraid.net/topic/<id>-gitpreserver/) once the thread is created. -->
+  <Support>https://github.com/RealDougEubanks/gitpreserver/issues</Support>
   <Project>https://github.com/RealDougEubanks/gitpreserver</Project>
   <Overview>
     A life preserver for your git repositories. Mirror-clones all repos with full branch and tag
@@ -20,7 +21,7 @@
     See the project README and docs/daemon-mode.md for full setup.
   </Overview>
   <Category>Backup: Tools:</Category>
-  <Icon>https://raw.githubusercontent.com/RealDougEubanks/gitpreserver/main/assets/icon.png</Icon>
+  <Icon>https://raw.githubusercontent.com/RealDougEubanks/gitpreserver/main/assets/icon-256.png</Icon>
   <ExtraParams></ExtraParams>
   <PostArgs></PostArgs>
   <DateInstalled></DateInstalled>

@@ -143,6 +143,162 @@ SHIM
     [ -f "${GITPRESERVER_BACKUP_DIR}/$(date -u +%Y-%m-%d)/metadata/repo1/releases.json" ]
 }
 
+@test "metadata.sh: bitbucket — curl is not invoked with -u user:token on the command line" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+
+    # Record every curl argv to a log, then behave like an empty repo list so
+    # the run exits cleanly. The assertion below checks the recorded argv.
+    arg_log="${BATS_TEST_TMPDIR}/curl-args.log"
+    export ARG_LOG="${arg_log}"
+    cat > "${shim_dir}/curl" <<'SHIM'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${ARG_LOG}"
+printf '{"values":[]}'
+SHIM
+    chmod +x "${shim_dir}/curl"
+    export PATH="${shim_dir}:${PATH}"
+
+    export GITPRESERVER_TOKEN=app_password
+    export GITPRESERVER_USERNAME=alice
+    export GITPRESERVER_HOST_TYPE=bitbucket
+    run "${REPO_ROOT}/backup/metadata.sh"
+    [ "${status}" -eq 0 ]
+
+    # The secret must never appear on the command line — no -u and no token.
+    run cat "${arg_log}"
+    [[ "${output}" != *"-u "* ]]
+    [[ "${output}" != *"app_password"* ]]
+    [[ "${output}" != *"alice:app_password"* ]]
+    # Auth must instead be supplied via a curl config file.
+    [[ "${output}" == *"--config"* ]]
+}
+
+@test "metadata.sh: bitbucket — --max-time present in curl args" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+
+    arg_log="${BATS_TEST_TMPDIR}/curl-args.log"
+    export ARG_LOG="${arg_log}"
+    cat > "${shim_dir}/curl" <<'SHIM'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${ARG_LOG}"
+printf '{"values":[]}'
+SHIM
+    chmod +x "${shim_dir}/curl"
+    export PATH="${shim_dir}:${PATH}"
+
+    export GITPRESERVER_TOKEN=app_password
+    export GITPRESERVER_USERNAME=alice
+    export GITPRESERVER_HOST_TYPE=bitbucket
+    run "${REPO_ROOT}/backup/metadata.sh"
+    [ "${status}" -eq 0 ]
+
+    run cat "${arg_log}"
+    [[ "${output}" == *"--max-time"* ]]
+}
+
+@test "metadata.sh: bitbucket — curl failure on page 2 writes no complete JSON and exits non-zero" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+
+    # Repo list returns one repo. The issues endpoint paginates: page 1 has a
+    # `next`, but the second fetch (page 2) fails with a transient error
+    # (curl exit 7 = connection failure), simulating mid-pagination failure.
+    counter="${BATS_TEST_TMPDIR}/issues-page-count"
+    : > "${counter}"
+    export COUNTER="${counter}"
+    cat > "${shim_dir}/curl" <<'SHIM'
+#!/usr/bin/env bash
+url=""
+for arg in "$@"; do
+    case "${arg}" in
+        http*) url="${arg}" ;;
+    esac
+done
+
+# Repo listing call.
+if [[ "${url}" == */repositories/alice* && "${url}" != */issues* && "${url}" != */pullrequests* ]]; then
+    printf '{"values":[{"slug":"repo1"}]}'
+    exit 0
+fi
+
+# Issues pagination: first page returns a `next`, second page fails hard.
+if [[ "${url}" == */issues* ]]; then
+    n=$(($(cat "${COUNTER}" 2>/dev/null || echo 0) + 1))
+    printf '%s' "${n}" > "${COUNTER}"
+    if [[ "${n}" -eq 1 ]]; then
+        printf '{"values":[{"id":1}],"next":"https://api.bitbucket.org/2.0/repositories/alice/repo1/issues?page=2"}'
+        exit 0
+    fi
+    # Page 2: simulate a connection failure.
+    exit 7
+fi
+
+# Pull requests and anything else: empty.
+printf '{"values":[]}'
+SHIM
+    chmod +x "${shim_dir}/curl"
+    export PATH="${shim_dir}:${PATH}"
+
+    export GITPRESERVER_TOKEN=app_password
+    export GITPRESERVER_USERNAME=alice
+    export GITPRESERVER_HOST_TYPE=bitbucket
+    run "${REPO_ROOT}/backup/metadata.sh"
+
+    # The stage must propagate a non-zero exit for the failed repo.
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"ERROR"* ]]
+
+    meta="${GITPRESERVER_BACKUP_DIR}/$(date -u +%Y-%m-%d)/metadata/repo1"
+    # No complete issues.json must exist — only a .partial marker.
+    [ ! -f "${meta}/issues.json" ]
+    [ -f "${meta}/issues.json.partial" ]
+}
+
+@test "metadata.sh: gitlab — rejects invalid HOST_URL" {
+    export GITPRESERVER_TOKEN=glpat_dummy
+    export GITPRESERVER_USERNAME=alice
+    export GITPRESERVER_HOST_TYPE=gitlab
+    export GITPRESERVER_HOST_URL='not a url; rm -rf /'
+    run "${REPO_ROOT}/backup/metadata.sh"
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"not a valid http(s) URL"* ]]
+}
+
+@test "metadata.sh: gitlab — --max-time present in curl args" {
+    shim_dir="${BATS_TEST_TMPDIR}/bin"
+    mkdir -p "${shim_dir}"
+
+    arg_log="${BATS_TEST_TMPDIR}/curl-args.log"
+    export ARG_LOG="${arg_log}"
+    cat > "${shim_dir}/curl" <<'SHIM'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${ARG_LOG}"
+args=("$@")
+i=0
+while (( i < ${#args[@]} )); do
+    if [[ "${args[$i]}" == "-D" ]]; then
+        i=$(( i + 1 ))
+        printf '' > "${args[$i]}"
+    fi
+    i=$(( i + 1 ))
+done
+printf '[]'
+SHIM
+    chmod +x "${shim_dir}/curl"
+    export PATH="${shim_dir}:${PATH}"
+
+    export GITPRESERVER_TOKEN=glpat_dummy
+    export GITPRESERVER_USERNAME=alice
+    export GITPRESERVER_HOST_TYPE=gitlab
+    run "${REPO_ROOT}/backup/metadata.sh"
+    [ "${status}" -eq 0 ]
+
+    run cat "${arg_log}"
+    [[ "${output}" == *"--max-time"* ]]
+}
+
 @test "metadata.sh: gitlab — handles empty project list" {
     shim_dir="${BATS_TEST_TMPDIR}/bin"
     mkdir -p "${shim_dir}"

@@ -1,0 +1,21 @@
+# Trivy ignore policy for GitPreserver
+#
+# List CVE/vulnerability IDs here to suppress accepted findings from the
+# image vulnerability scan (see .github/workflows/lint.yml -> trivy job).
+#
+# Rules:
+#   - One vulnerability ID per line (e.g. CVE-2024-12345).
+#   - Every suppression MUST have an explanatory comment above it stating
+#     WHY it is accepted and WHO/WHEN reviewed it. Undocumented suppressions
+#     are not allowed and should be removed during review.
+#   - Prefer fixing or upgrading over ignoring. Ignore only when the finding
+#     is a false positive, not reachable in this image, or has no available
+#     fix and the risk is formally accepted.
+#   - Optionally add an expiry note so stale suppressions get re-reviewed.
+#
+# Example:
+#   # CVE-2025-0001: false positive, the vulnerable codepath in libfoo is not
+#   # invoked by GitPreserver. Accepted by @dougeubanks on 2026-06-11.
+#   # CVE-2025-0001
+#
+# (No active suppressions.)

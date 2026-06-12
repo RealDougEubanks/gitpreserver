@@ -45,7 +45,7 @@ cp config/.env.example .env
 
 | Variable | Required | Default | Description | Used in |
 |----------|----------|---------|-------------|---------|
-| `GITPRESERVER_RCLONE_REMOTE` | No | — | rclone remote name. Must exist in `rclone.conf` (or be defined via `RCLONE_CONFIG_*` env vars). Leave blank for local-only backups. | `backup/sync.sh` |
+| `GITPRESERVER_RCLONE_REMOTE` | No | — | rclone remote name, or a comma-separated list to sync to multiple destinations in one run (e.g. `b2-remote,s3-remote`). Each remote must exist in `rclone.conf` (or be defined via `RCLONE_CONFIG_*` env vars). A failing remote is logged and skipped; the others still sync and the run exits non-zero. Leave blank for local-only backups. | `backup/sync.sh` |
 | `GITPRESERVER_RCLONE_PATH` | No | `gitpreserver-backups` | Bucket or path on the remote to sync into. | `backup/sync.sh` |
 | `GITPRESERVER_RCLONE_CONFIG` | No | `./rclone/rclone.conf` | Host path to `rclone.conf`. Mounted read-only by `docker-compose.yml`. Leave blank to use `RCLONE_CONFIG_*` env vars instead. | `docker-compose.yml` |
 | `GITPRESERVER_RCLONE_TRANSFERS` | No | `4` | Number of parallel file transfers. | `backup/sync.sh` |
@@ -62,7 +62,7 @@ See [`docs/storage-backends.md`](storage-backends.md) for per-backend setup guid
 | Variable | Required | Default | Description | Used in |
 |----------|----------|---------|-------------|---------|
 | `GITPRESERVER_ENCRYPT` | No | `false` | Set to `true` to encrypt backups via rclone crypt (AES-256-CTR). | `backup/sync.sh` |
-| `GITPRESERVER_CRYPT_REMOTE` | If ENCRYPT=true | — | rclone crypt remote name. Must be configured in `rclone.conf`. | `backup/sync.sh` |
+| `GITPRESERVER_CRYPT_REMOTE` | If ENCRYPT=true | — | rclone crypt remote name. Must be configured in `rclone.conf`. When `GITPRESERVER_RCLONE_REMOTE` lists multiple remotes, list one crypt remote per plain remote in the same order — they are paired by position. | `backup/sync.sh` |
 | `GITPRESERVER_CRYPT_PASS` | No | — | Encryption passphrase. Usually read from `rclone.conf` in obscured form. If set here, use the **plaintext** value — rclone obscures it at runtime. Generate: `openssl rand -base64 32` | `backup/sync.sh` |
 | `GITPRESERVER_CRYPT_PASS2` | No | — | Salt for passphrase hardening. Generate: `rclone obscure your-salt-string` | `backup/sync.sh` |
 | `GITPRESERVER_CRYPT_KEYFILE` | No | — | Path to a keyfile **inside the container**. Mount it in with a volume if used. | `backup/sync.sh` |
@@ -78,6 +78,8 @@ See [`docs/encryption.md`](encryption.md) for full setup instructions.
 | `GITPRESERVER_MODE` | No | `oneshot` | `oneshot`: run backup once and exit. `daemon`: stay running, fire backups on schedule, serve web UI. | `docker/entrypoint.sh` |
 | `GITPRESERVER_SCHEDULE` | No | `0 2 * * 0` | Five-field cron expression. Used by daemon mode internally and as a reference for external schedulers. Default: every Sunday at 02:00 UTC. | `docker/daemon-start.sh` |
 | `GITPRESERVER_WEB_PORT` | No | `6033` | Web UI port (daemon mode only). | `docker/webserver.py`, `docker-compose.yml` |
+| `GITPRESERVER_WEB_BIND` | No | `0.0.0.0` | Interface the web UI listens on (daemon mode only). Set to `127.0.0.1` to restrict it to the loopback interface. | `docker/webserver.py` |
+| `GITPRESERVER_WEB_TOKEN` | No | — | Bearer token guarding `POST /run` and `GET /config`. If unset, a random token is generated at startup and printed to stderr — but it changes on every restart, so set it explicitly for stable access. | `docker/webserver.py` |
 
 ---
 
@@ -129,11 +131,15 @@ Leave `GITPRESERVER_RCLONE_CONFIG` blank when using this approach.
 
 ---
 
-## Notifications (roadmap — not yet implemented)
+## Notifications (webhooks)
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GITPRESERVER_WEBHOOK_URL` | No | — | Webhook URL for backup completion and failure notifications. Supports Slack, Discord, ntfy, and generic webhooks. |
+GitPreserver POSTs a notification when a run finishes. The service is detected from the URL: Slack (`hooks.slack.com`), Discord (`discord.com/api/webhooks`), or a generic JSON body for everything else (ntfy, Make, Zapier, plain HTTP). Delivery has a 15-second timeout and retries twice; a delivery failure logs a warning and never fails the backup.
+
+| Variable | Required | Default | Description | Used in |
+|----------|----------|---------|-------------|---------|
+| `GITPRESERVER_WEBHOOK_URL` | No | — | One or more webhook URLs, comma-separated. Each is POSTed in turn. Must be `https://`; plain `http://` is rejected unless `GITPRESERVER_WEBHOOK_ALLOW_INSECURE=true`. | `backup/notify.sh` |
+| `GITPRESERVER_WEBHOOK_ON` | No | `always` | When to fire: `always` \| `success` \| `failure`. | `backup/notify.sh` |
+| `GITPRESERVER_WEBHOOK_ALLOW_INSECURE` | No | `false` | Set to `true` to permit plain `http://` webhook URLs (e.g. a LAN ntfy instance). | `backup/notify.sh` |
 
 ---
 

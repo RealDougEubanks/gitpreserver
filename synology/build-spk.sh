@@ -30,6 +30,33 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# ---------------------------------------------------------------------------
+# Guard: the INFO version must match the latest CHANGELOG release so the SPK
+# version can't silently drift from the released version again. We compare the
+# x.y.z part of the Synology version (x.y.z-N) against the top-most
+# "## [x.y.z]" heading in CHANGELOG.md (ignoring an "Unreleased" section).
+# ---------------------------------------------------------------------------
+CHANGELOG="${REPO_ROOT}/CHANGELOG.md"
+if [[ -f "${CHANGELOG}" ]]; then
+    CHANGELOG_VERSION=$(grep -Eo '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' "${CHANGELOG}" \
+        | head -n 1 | sed -E 's/^## \[([0-9]+\.[0-9]+\.[0-9]+)\].*/\1/')
+    INFO_VERSION="${VERSION%%-*}"
+    if [[ -z "${CHANGELOG_VERSION}" ]]; then
+        echo "ERROR: could not parse a version from ${CHANGELOG}" >&2
+        exit 1
+    fi
+    if [[ "${INFO_VERSION}" != "${CHANGELOG_VERSION}" ]]; then
+        echo "ERROR: version mismatch — INFO is '${INFO_VERSION}' (from '${VERSION}')" >&2
+        echo "       but CHANGELOG.md latest release is '${CHANGELOG_VERSION}'." >&2
+        echo "       Update synology/INFO 'version' to match the released version." >&2
+        exit 1
+    fi
+    log "Version check passed: INFO ${INFO_VERSION} matches CHANGELOG ${CHANGELOG_VERSION}"
+else
+    echo "ERROR: CHANGELOG.md not found at ${CHANGELOG}; cannot verify version." >&2
+    exit 1
+fi
+
 DIST_DIR="${SCRIPT_DIR}/dist"
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "${WORK_DIR}"' EXIT
@@ -59,7 +86,7 @@ tar -czf "${WORK_DIR}/package.tgz" -C "${PKG_WORK}" .
 # 2. Assemble the SPK staging directory
 # ---------------------------------------------------------------------------
 SPK_STAGE="${WORK_DIR}/spk"
-mkdir -p "${SPK_STAGE}/scripts" "${SPK_STAGE}/WIZARD_UIFILES"
+mkdir -p "${SPK_STAGE}/scripts" "${SPK_STAGE}/WIZARD_UIFILES" "${SPK_STAGE}/conf"
 
 cp "${SCRIPT_DIR}/INFO"                          "${SPK_STAGE}/INFO"
 cp "${WORK_DIR}/package.tgz"                     "${SPK_STAGE}/package.tgz"
@@ -68,7 +95,7 @@ cp "${SCRIPT_DIR}/scripts/postinst"              "${SPK_STAGE}/scripts/postinst"
 cp "${SCRIPT_DIR}/scripts/preuninst"             "${SPK_STAGE}/scripts/preuninst"
 cp "${SCRIPT_DIR}/scripts/start-stop-status"     "${SPK_STAGE}/scripts/start-stop-status"
 cp "${SCRIPT_DIR}/WIZARD_UIFILES/install_uifile" "${SPK_STAGE}/WIZARD_UIFILES/install_uifile"
-cp "${SCRIPT_DIR}/conf/resource"                 "${SPK_STAGE}/conf/resource" 2>/dev/null || true
+cp "${SCRIPT_DIR}/conf/resource"                 "${SPK_STAGE}/conf/resource"
 
 chmod +x \
     "${SPK_STAGE}/scripts/preinst" \
