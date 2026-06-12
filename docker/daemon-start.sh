@@ -11,6 +11,7 @@ set -euo pipefail
 # backup scripts both land in /usr/local/bin, so lib/ sits beside this file;
 # in the source tree the lib lives under backup/lib. Try both.
 _gp_dir="$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck disable=SC2034  # consumed by the sourced lib/log.sh, not in this file
 GITPRESERVER_LOG_COMPONENT="daemon"
 if [[ -f "${_gp_dir}/lib/log.sh" ]]; then
     source "${_gp_dir}/lib/log.sh"

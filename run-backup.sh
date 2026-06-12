@@ -26,6 +26,7 @@ LOCK_FILE="${GITPRESERVER_LOCK_FILE:-${SCRIPT_DIR}/.gitpreserver.lock}"
 
 # Component label for the structured logger: this wrapper lives at the repo
 # root, so derive a name explicitly rather than from the script path.
+# shellcheck disable=SC2034  # consumed by the sourced lib/log.sh, not in this file
 GITPRESERVER_LOG_COMPONENT="run-backup"
 source "${SCRIPT_DIR}/backup/lib/log.sh"
 

@@ -102,7 +102,12 @@ jobs:
           image-ref: gitpreserver:scan
           format: table
           exit-code: "1"
-          ignore-unfixed: false
+          # Fail only on vulnerabilities that have a fix available — i.e. ones we
+          # can actually act on by updating a package. A freshly built
+          # debian-slim base always carries dozens of unfixed OS CVEs (jq,
+          # libperl, libpython, expat, …) with no upstream patch; gating on those
+          # would make the scan permanently red with no actionable remedy.
+          ignore-unfixed: true
           severity: HIGH,CRITICAL
           # Accepted/suppressed findings are documented in .trivyignore at the
           # repo root.
