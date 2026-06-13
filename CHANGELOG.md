@@ -11,6 +11,36 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [2.1.0] — 2026-06-13
+
+### Added
+- Webhook notifications (`backup/notify.sh`). `GITPRESERVER_WEBHOOK_URL` takes one or more URLs (comma-separated); the payload is shaped per destination — Slack (`{text}`), Discord (`{embeds}`), or generic JSON for anything else (ntfy, Make, Zapier). `GITPRESERVER_WEBHOOK_ON` controls when to fire: `always` (default) | `success` | `failure`. Delivery has a 15s timeout and retries; a failed notification logs a warning and never fails the backup.
+- Multiple rclone destinations. `GITPRESERVER_RCLONE_REMOTE` accepts a comma-separated list; each remote is synced independently. With encryption enabled, `GITPRESERVER_CRYPT_REMOTE` takes a matching list that pairs to the plain remotes by position.
+- Web UI authentication. `GITPRESERVER_WEB_TOKEN` is a bearer token required for `POST /run` and `GET /config` (auto-generated and printed to stderr if unset). `GITPRESERVER_WEB_BIND` sets the listen interface.
+- `GITPRESERVER_WEBHOOK_ALLOW_INSECURE` permits plain `http://` webhook URLs (for a LAN ntfy instance); https is required otherwise.
+- `tests/local-sync-test.sh` — local integration harness that drives the real sync and notify scripts (no mocks) against rclone's local backend and a throwaway HTTP server.
+- CI: Trivy image vulnerability scan with a documented `.trivyignore` policy; `.github/dependabot.yml` for github-actions and docker updates; GitHub Release creation and Docker Hub description sync on tag push.
+- Dockerfile `HEALTHCHECK` probing `/healthz` (meaningful in daemon mode).
+
+### Changed
+- Structured logging. All bash scripts now emit logfmt records (`ts level component run_id msg`) to **stderr** via a shared `backup/lib/log.sh`, replacing plain-text lines on stdout. Anything parsing the previous log format will need to adapt.
+- `backup/sync.sh` no longer aborts on the first failing remote. Each remote syncs independently, local retention pruning always runs, the run exits non-zero if any remote failed, and the failed-remote list is written to `<backup_dir>/.gitpreserver-failed-remotes` for the notification layer.
+- Dockerfile is now a multi-stage build (curl/unzip stay in the builder and are dropped from the runtime image). Bundled tools bumped and pinned with verified per-architecture SHA256 checksums: ghorg 1.11.11, gh 2.94.0, rclone 1.74.3, supercronic 0.2.46.
+- `synology/INFO` version bumped to `2.1.0-1`; the Docker image tag is derived from INFO so it stays in sync, and `build-spk.sh` fails if INFO and the changelog disagree.
+
+### Security
+- The daemon web server's `POST /run` now requires the bearer token plus an `Origin` check and a request-body size limit. Previously it was unauthenticated and CSRF-able while bound to all interfaces.
+- Webhook URLs are redacted on the `/config` endpoint and dashboard (Slack/Discord webhook URLs are themselves credentials).
+- Bitbucket credentials are passed to curl via a `0600` `--config` file instead of `-u user:token` on the command line, keeping them out of the process list.
+- `GITPRESERVER_SCHEDULE` is validated against a strict cron grammar before being written to the supercronic crontab, preventing command injection.
+- `GITPRESERVER_HOST_URL` is validated as a well-formed http(s) URL before use.
+
+### Fixed
+- `backup/metadata.sh` no longer writes a complete-looking `issues.json`/`pull_requests.json` when pagination fails mid-way — the partial result is written with a `.partial` suffix and the stage exits non-zero. HTTP calls now have timeouts.
+- unRAID template `<Icon>` pointed at a non-existent `assets/icon.png`; now uses an existing asset. Synology `INFO` had dead GitHub URLs (wrong org); corrected to `RealDougEubanks`.
+
+---
+
 ## [2.0.0] — 2026-05-27
 
 ### Added
@@ -112,7 +142,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 First public release. GitHub account backup (Phase 1).
 
-[Unreleased]: https://github.com/RealDougEubanks/gitpreserver/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/RealDougEubanks/gitpreserver/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/RealDougEubanks/gitpreserver/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/RealDougEubanks/gitpreserver/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/RealDougEubanks/gitpreserver/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/RealDougEubanks/gitpreserver/releases/tag/v1.0.0
