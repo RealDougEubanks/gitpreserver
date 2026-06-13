@@ -9,6 +9,9 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- `run-backup.sh` no longer passes an unconditional `--quiet` to `docker compose build`. Older Docker/Compose releases reject that flag (`unknown flag: --quiet`) and the run aborted before any stage executed; the script now probes for support and falls back to a normal build.
+
 ---
 
 ## [2.1.0] — 2026-06-13

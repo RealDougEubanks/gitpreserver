@@ -145,7 +145,15 @@ run_pipeline() {
     # without it, edits to backup/*.sh or docker/Dockerfile silently run
     # the previously-built image and look like the change had no effect.
     log_info "Ensuring image is up to date (docker compose build)"
-    docker compose build --quiet
+    # A quiet build keeps scheduled/cron logs clean, but older Docker/Compose
+    # releases don't accept `--quiet` on `compose build` (they error with
+    # "unknown flag: --quiet"). Probe for support and fall back to a normal
+    # build so the pipeline runs everywhere.
+    if docker compose build --help 2>/dev/null | grep -q -- '--quiet'; then
+        docker compose build --quiet
+    else
+        docker compose build
+    fi
     compose_run_args mirror
     compose_run_args metadata
 
