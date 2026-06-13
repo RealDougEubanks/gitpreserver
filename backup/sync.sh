@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
+source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
 
 BACKUP_DIR="${GITPRESERVER_BACKUP_DIR:-/backups}"
 RCLONE_REMOTES="${GITPRESERVER_RCLONE_REMOTE:-}"
@@ -13,20 +13,24 @@ LOG_LEVEL="${GITPRESERVER_LOG_LEVEL:-info}"
 RETENTION_DAYS="${GITPRESERVER_RETENTION_DAYS:-30}"
 DRY_RUN="${GITPRESERVER_DRY_RUN:-false}"
 
+# Remotes that failed to sync. Declared up front so the partial-failure
+# reporting block below works even when no remotes are configured.
+failed_remotes=()
+
 if ! [[ "${RETENTION_DAYS}" =~ ^[0-9]+$ ]]; then
-    log "ERROR: GITPRESERVER_RETENTION_DAYS must be a non-negative integer (got '${RETENTION_DAYS}')."
+    log_error "ERROR: GITPRESERVER_RETENTION_DAYS must be a non-negative integer (got '${RETENTION_DAYS}')."
     exit 1
 fi
 
 if ! [[ "${RCLONE_TRANSFERS}" =~ ^[0-9]+$ ]] || (( RCLONE_TRANSFERS == 0 )); then
-    log "ERROR: GITPRESERVER_RCLONE_TRANSFERS must be a positive integer (got '${RCLONE_TRANSFERS}')."
+    log_error "ERROR: GITPRESERVER_RCLONE_TRANSFERS must be a positive integer (got '${RCLONE_TRANSFERS}')."
     exit 1
 fi
 
 # ---- Remote sync --------------------------------------------------------
 
 if [[ -z "${RCLONE_REMOTES}" ]]; then
-    log "GITPRESERVER_RCLONE_REMOTE is not set -- skipping remote sync (local backup only)."
+    log_info "GITPRESERVER_RCLONE_REMOTE is not set -- skipping remote sync (local backup only)."
 else
     RCLONE_LOG_LEVEL=$(printf '%s' "${LOG_LEVEL}" | tr '[:lower:]' '[:upper:]')
 
@@ -37,11 +41,11 @@ else
     # When encryption is enabled, require a crypt remote for every plain remote.
     if [[ "${ENCRYPT}" == "true" ]]; then
         if [[ -z "${CRYPT_REMOTES}" ]]; then
-            log "ERROR: GITPRESERVER_ENCRYPT=true but GITPRESERVER_CRYPT_REMOTE is not set."
+            log_error "ERROR: GITPRESERVER_ENCRYPT=true but GITPRESERVER_CRYPT_REMOTE is not set."
             exit 1
         fi
         if (( ${#crypt_list[@]} != ${#remote_list[@]} )); then
-            log "ERROR: GITPRESERVER_CRYPT_REMOTE has ${#crypt_list[@]} entries but GITPRESERVER_RCLONE_REMOTE has ${#remote_list[@]}. They must match 1-to-1."
+            log_error "ERROR: GITPRESERVER_CRYPT_REMOTE has ${#crypt_list[@]} entries but GITPRESERVER_RCLONE_REMOTE has ${#remote_list[@]}. They must match 1-to-1."
             exit 1
         fi
     fi
@@ -71,27 +75,33 @@ else
         )
 
         if [[ "${DRY_RUN}" == "true" ]]; then
-            log "DRY RUN: rclone sync ${BACKUP_DIR} -> ${DEST}"
+            log_info "DRY RUN: rclone sync ${BACKUP_DIR} -> ${DEST}"
             rclone_args+=(--dry-run)
         else
-            log "Syncing ${BACKUP_DIR} -> ${DEST}"
+            log_info "Syncing ${BACKUP_DIR} -> ${DEST}"
         fi
 
-        rclone "${rclone_args[@]}"
-
-        [[ "${DRY_RUN}" == "true" ]] || log "Sync to ${DEST} complete."
+        # Run each remote independently. A failure here must NOT abort the
+        # loop (errexit would skip remaining remotes and retention pruning),
+        # so we trap the non-zero status, record the remote, and keep going.
+        if rclone "${rclone_args[@]}"; then
+            [[ "${DRY_RUN}" == "true" ]] || log_info "Sync to ${DEST} complete."
+        else
+            log_error "ERROR: rclone sync to ${DEST} failed."
+            failed_remotes+=("${ACTIVE_REMOTE}")
+        fi
     done
 fi
 
 # ---- Local retention pruning -------------------------------------------
 
 if (( RETENTION_DAYS > 0 )); then
-    log "Pruning local snapshots older than ${RETENTION_DAYS} days"
+    log_info "Pruning local snapshots older than ${RETENTION_DAYS} days"
     while IFS= read -r -d '' old_dir; do
         if [[ "${DRY_RUN}" == "true" ]]; then
-            log "DRY RUN: would remove ${old_dir}"
+            log_info "DRY RUN: would remove ${old_dir}"
         else
-            log "Removing ${old_dir}"
+            log_info "Removing ${old_dir}"
             rm -rf -- "${old_dir}"
         fi
     done < <(find "${BACKUP_DIR}" \
@@ -101,5 +111,22 @@ if (( RETENTION_DAYS > 0 )); then
         -mtime +"${RETENTION_DAYS}" \
         -print0)
 else
-    log "Retention pruning disabled (GITPRESERVER_RETENTION_DAYS=0)."
+    log_info "Retention pruning disabled (GITPRESERVER_RETENTION_DAYS=0)."
+fi
+
+# ---- Partial-failure reporting -----------------------------------------
+# Retention pruning above always runs, even when one or more remotes failed.
+# We surface failures here so cron/daemon status reflects partial failure and
+# the notification layer can read the list. Exit non-zero if anything failed.
+
+if (( ${#failed_remotes[@]} > 0 )); then
+    failed_csv=$(IFS=','; printf '%s' "${failed_remotes[*]}")
+    log_error "ERROR: ${#failed_remotes[@]} remote(s) failed to sync: ${failed_csv}"
+    # Make the failed-remote list available to the notification payload.
+    # A status file is the least-coupled option (sync.sh and notify.sh are
+    # separate processes); fall back to stderr if the dir is not writable.
+    if ! printf '%s\n' "${failed_csv}" > "${BACKUP_DIR}/.gitpreserver-failed-remotes" 2>/dev/null; then
+        printf 'gitpreserver: failed remotes: %s\n' "${failed_csv}" >&2
+    fi
+    exit 1
 fi

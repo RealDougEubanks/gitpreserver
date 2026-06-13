@@ -78,3 +78,53 @@ SHIM
     [ "${status}" -eq 0 ]
     grep -q "0 2 \* \* 0" "${BATS_TEST_TMPDIR}/captured.cron"
 }
+
+# ---------------------------------------------------------------------------
+# Schedule validation (command-injection hardening)
+# ---------------------------------------------------------------------------
+
+@test "daemon-start.sh: accepts a valid 5-field cron expression with operators" {
+    shim_dir="$(setup_daemon_shims)"
+    export PATH="${shim_dir}:${PATH}"
+    export GITPRESERVER_STATUS_FILE="${BATS_TEST_TMPDIR}/status.json"
+    export GITPRESERVER_SCHEDULE="*/15 0-6 1,15 * 1-5"
+
+    run "${REPO_ROOT}/docker/daemon-start.sh"
+    [ "${status}" -eq 0 ]
+    grep -q "run-stages.sh" "${BATS_TEST_TMPDIR}/captured.cron"
+}
+
+@test "daemon-start.sh: accepts the @daily shortcut" {
+    shim_dir="$(setup_daemon_shims)"
+    export PATH="${shim_dir}:${PATH}"
+    export GITPRESERVER_STATUS_FILE="${BATS_TEST_TMPDIR}/status.json"
+    export GITPRESERVER_SCHEDULE="@daily"
+
+    run "${REPO_ROOT}/docker/daemon-start.sh"
+    [ "${status}" -eq 0 ]
+    grep -q "@daily flock" "${BATS_TEST_TMPDIR}/captured.cron"
+}
+
+@test "daemon-start.sh: rejects a schedule containing shell metacharacters" {
+    shim_dir="$(setup_daemon_shims)"
+    export PATH="${shim_dir}:${PATH}"
+    export GITPRESERVER_STATUS_FILE="${BATS_TEST_TMPDIR}/status.json"
+    export GITPRESERVER_SCHEDULE='* * * * * x; rm -rf /'
+
+    run "${REPO_ROOT}/docker/daemon-start.sh"
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"not a valid cron expression"* ]]
+    [ ! -f "${BATS_TEST_TMPDIR}/captured.cron" ]
+}
+
+@test "daemon-start.sh: rejects a schedule with too many fields" {
+    shim_dir="$(setup_daemon_shims)"
+    export PATH="${shim_dir}:${PATH}"
+    export GITPRESERVER_STATUS_FILE="${BATS_TEST_TMPDIR}/status.json"
+    export GITPRESERVER_SCHEDULE="0 2 * * 0 extra"
+
+    run "${REPO_ROOT}/docker/daemon-start.sh"
+    [ "${status}" -ne 0 ]
+    [[ "${output}" == *"not a valid cron expression"* ]]
+    [ ! -f "${BATS_TEST_TMPDIR}/captured.cron" ]
+}

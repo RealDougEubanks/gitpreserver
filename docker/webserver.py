@@ -9,18 +9,75 @@ Routes:
   POST /run      Trigger an immediate backup run
 """
 
+import hmac
 import http.server
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
+
+# Component name for structured log lines emitted by this process.
+_LOG_COMPONENT = "webserver"
+# Correlation id, stable for the life of the process. Reuse one threaded in from
+# a parent (the daemon exports GITPRESERVER_RUN_ID); otherwise derive a cheap
+# per-process id matching the bash helper's date-PID shape.
+_RUN_ID = os.environ.get("GITPRESERVER_RUN_ID") or "{0}-{1}".format(
+    datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"), os.getpid()
+)
+
+
+def _log_escape(value):
+    """Escape a value for a double-quoted logfmt field: backslashes and quotes
+    are escaped and newlines/tabs folded to spaces so a message can never inject
+    extra fields or spill onto fake log lines."""
+    s = str(value)
+    s = s.replace("\\", "\\\\").replace('"', '\\"')
+    s = s.replace("\n", " ").replace("\r", " ").replace("\t", " ")
+    return s
+
+
+def log(level, msg):
+    """Emit one logfmt record to stderr matching backup/lib/log.sh."""
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    print(
+        'ts={0} level={1} component={2} run_id={3} msg="{4}"'.format(
+            ts, level, _LOG_COMPONENT, _RUN_ID, _log_escape(msg)
+        ),
+        file=sys.stderr, flush=True,
+    )
 
 PORT = int(os.environ.get("GITPRESERVER_WEB_PORT", "6033"))
+BIND = os.environ.get("GITPRESERVER_WEB_BIND", "0.0.0.0")
 STATUS_FILE = os.environ.get("GITPRESERVER_STATUS_FILE", "/tmp/gitpreserver-status.json")
 LOCK_FILE = "/tmp/gitpreserver.lock"
 _REDACT = {"TOKEN", "PASS", "KEY", "SECRET", "PASSWORD", "ACCOUNT"}
+# Keys whose values are URLs containing embedded credentials (webhooks, etc.).
+_REDACT_URL = {"WEBHOOK", "URL"}
+# Reject POST bodies larger than this (bytes). Mutating routes take no payload.
+MAX_BODY_BYTES = 4096
+
+
+def _load_token():
+    """Return the bearer token guarding mutating/sensitive routes.
+
+    Read from GITPRESERVER_WEB_TOKEN; if unset, generate a random one at
+    startup and print it to stderr so the operator can find it.
+    """
+    token = os.environ.get("GITPRESERVER_WEB_TOKEN", "").strip()
+    if token:
+        return token
+    token = secrets.token_urlsafe(32)
+    log("warn", "GITPRESERVER_WEB_TOKEN not set; generated a random web token "
+                "for POST /run and GET /config")
+    log("warn", f"generated web token: {token}")
+    return token
+
+
+WEB_TOKEN = _load_token()
 
 
 def now_iso():
@@ -39,16 +96,34 @@ def write_status(data):
     try:
         with open(STATUS_FILE, "w") as f:
             json.dump(data, f)
-    except OSError:
-        pass
+    except OSError as exc:
+        log("error", f"failed to write status file {STATUS_FILE}: {exc}")
+
+
+def _redact_url(value):
+    """Show only scheme+host of a URL; hide path/query/credentials."""
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return "[redacted]"
+    if parts.scheme and parts.hostname:
+        return f"{parts.scheme}://{parts.hostname}/…[redacted]"
+    return "[redacted]"
 
 
 def get_config():
     result = {}
     for k, v in sorted(os.environ.items()):
         if k.startswith(("GITPRESERVER_", "RCLONE_CONFIG_")):
-            redact = any(s in k.upper() for s in _REDACT)
-            result[k] = "***" if (redact and v) else v
+            ku = k.upper()
+            if not v:
+                result[k] = v
+            elif any(s in ku for s in _REDACT):
+                result[k] = "***"
+            elif any(s in ku for s in _REDACT_URL):
+                result[k] = _redact_url(v)
+            else:
+                result[k] = v
     return result
 
 
@@ -63,8 +138,11 @@ def trigger_backup():
             ["flock", "-n", LOCK_FILE, "run-stages.sh"],
             capture_output=True, text=True
         )
+        # The stage scripts already emit structured logfmt lines on their own
+        # streams; relay them verbatim rather than re-wrapping them in a msg=.
         output = (result.stdout + result.stderr).strip()
-        print(output, file=sys.stderr, flush=True)
+        if output:
+            print(output, file=sys.stderr, flush=True)
         if result.returncode == 1 and not output:
             write_status({"status": "skipped", "last_run": now_iso(),
                           "message": "A backup is already running."})
@@ -75,6 +153,7 @@ def trigger_backup():
                 "message": output[-3000:],
             })
     except Exception as exc:
+        log("error", f"backup trigger failed: {exc}")
         write_status({"status": "error", "last_run": now_iso(), "message": str(exc)})
 
 
@@ -162,8 +241,10 @@ td:first-child{{color:#64748b;width:45%;padding-right:1rem}}
 </main>
 <script>
 function triggerRun(){{
-  fetch('/run',{{method:'POST'}})
-    .then(()=>setTimeout(()=>location.reload(),800))
+  var t=window.prompt('Enter web token (GITPRESERVER_WEB_TOKEN):');
+  if(!t) return;
+  fetch('/run',{{method:'POST',headers:{{'Authorization':'Bearer '+t,'Content-Length':'0'}}}})
+    .then(function(r){{if(!r.ok)alert('Run failed: '+r.status);setTimeout(function(){{location.reload();}},800);}})
     .catch(console.error);
 }}
 </script>
@@ -195,6 +276,26 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _is_authorized(self):
+        """Constant-time bearer-token check on the Authorization header."""
+        header = self.headers.get("Authorization", "")
+        prefix = "Bearer "
+        if not header.startswith(prefix):
+            return False
+        return hmac.compare_digest(header[len(prefix):], WEB_TOKEN)
+
+    def _origin_matches_host(self):
+        """Reject cross-origin POSTs: if Origin is present its host must match Host."""
+        origin = self.headers.get("Origin")
+        if not origin:
+            return True  # no Origin header (e.g. curl) — token auth still applies
+        host = self.headers.get("Host", "")
+        try:
+            origin_host = urlsplit(origin).netloc
+        except ValueError:
+            return False
+        return bool(origin_host) and origin_host == host
+
     def do_GET(self):
         path = self.path.split("?")[0]
         if path == "/healthz":
@@ -208,24 +309,66 @@ class Handler(http.server.BaseHTTPRequestHandler):
                             os.environ.get("GITPRESERVER_SCHEDULE", "0 2 * * 0")),
             }, code=200 if ok else 503)
         elif path == "/config":
+            if not self._is_authorized():
+                self.send_json({"error": "unauthorized"}, 401)
+                return
             self.send_json(get_config())
         elif path in ("/", "/status"):
             self.send_html(render_dashboard())
         else:
             self.send_json({"error": "not found"}, 404)
 
+    def _drain_body(self):
+        """Read and discard any request body so the connection stays usable."""
+        try:
+            length = int(self.headers.get("Content-Length", "0") or "0")
+        except ValueError:
+            length = 0
+        if length > 0:
+            try:
+                self.rfile.read(length)
+            except OSError:
+                pass
+
     def do_POST(self):
         path = self.path.split("?")[0]
-        if path == "/run":
-            threading.Thread(target=trigger_backup, daemon=True).start()
-            self.send_json({"status": "started"})
-        else:
+        if path != "/run":
             self.send_json({"error": "not found"}, 404)
+            return
+
+        # Bound the request body: a manual trigger carries no payload.
+        raw_len = self.headers.get("Content-Length")
+        if raw_len is None:
+            self.send_json({"error": "Content-Length required"}, 411)
+            return
+        try:
+            content_length = int(raw_len)
+        except ValueError:
+            self.send_json({"error": "invalid Content-Length"}, 400)
+            return
+        if content_length < 0 or content_length > MAX_BODY_BYTES:
+            self.send_json({"error": "payload too large"}, 413)
+            return
+
+        self._drain_body()
+
+        # CSRF defense: reject cross-origin POSTs.
+        if not self._origin_matches_host():
+            self.send_json({"error": "origin not allowed"}, 403)
+            return
+
+        # Bearer-token authentication.
+        if not self._is_authorized():
+            self.send_json({"error": "unauthorized"}, 401)
+            return
+
+        threading.Thread(target=trigger_backup, daemon=True).start()
+        self.send_json({"status": "started"})
 
 
 if __name__ == "__main__":
-    server = http.server.ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"[gitpreserver] Web UI listening on port {PORT}", flush=True)
+    server = http.server.ThreadingHTTPServer((BIND, PORT), Handler)
+    log("info", f"Web UI listening on {BIND}:{PORT}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

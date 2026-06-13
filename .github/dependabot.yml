@@ -1,0 +1,28 @@
+# Dependabot configuration for GitPreserver.
+#
+# NOTE ON UNTRACKED TOOL VERSIONS:
+# The four pinned tool versions inside docker/Dockerfile (the rclone, gosu,
+# tini, and similar ARG-pinned tools) are fetched via curl, NOT through a
+# package manager, so Dependabot cannot discover or bump them. These must be
+# reviewed and updated MANUALLY, or managed with a Renovate "regexManagers"
+# (custom regex) rule if Renovate is adopted later. Do not assume Dependabot
+# keeps them current.
+version: 2
+updates:
+  # Keep GitHub Actions used in .github/workflows/* up to date.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+
+  # Track the Dockerfile base image (FROM) for security/patch updates.
+  - package-ecosystem: "docker"
+    directory: "/docker"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build"

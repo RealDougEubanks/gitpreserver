@@ -81,11 +81,17 @@ See [encryption.md](encryption.md) for full setup instructions.
 | `GITPRESERVER_LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` |
 | `GITPRESERVER_DRY_RUN` | `false` | Set to `true` to run without writing or syncing anything. |
 
-### Notifications (roadmap)
+### Notifications
+
+GitPreserver POSTs a notification when a run finishes. The destination service is detected from the URL: Slack incoming webhooks (`hooks.slack.com`) get a `{"text": ...}` payload, Discord webhooks (`discord.com/api/webhooks`) get an embed, and anything else gets a generic JSON body (`status`, `message`, `username`, `host_type`, `timestamp`) that works with ntfy, Make, Zapier, and plain HTTP endpoints.
 
 | Variable | Default | Description |
 |---|---|---|
-| `GITPRESERVER_WEBHOOK_URL` | — | Webhook URL for completion/failure notifications (not yet implemented). |
+| `GITPRESERVER_WEBHOOK_URL` | — | One or more webhook URLs, comma-separated. Each URL is POSTed in turn (multi-URL fan-out). Must be `https://` — plain `http://` is rejected unless `GITPRESERVER_WEBHOOK_ALLOW_INSECURE=true`. Leave blank to disable notifications. |
+| `GITPRESERVER_WEBHOOK_ON` | `always` | When to fire: `always`, `success`, or `failure`. |
+| `GITPRESERVER_WEBHOOK_ALLOW_INSECURE` | `false` | Set to `true` to allow plain `http://` webhook URLs, intended for a LAN ntfy instance. Plain http exposes the payload in transit, so this is an explicit opt-in. |
+
+Delivery has a 15-second timeout and retries twice with a short backoff. A webhook that fails to deliver logs a warning — it never fails the backup itself.
 
 ---
 

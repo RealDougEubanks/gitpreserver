@@ -14,13 +14,23 @@
 
 set -euo pipefail
 
-log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
+# Locate the shared logging helper. In the container the docker scripts and
+# backup scripts both land in /usr/local/bin, so lib/ sits beside this file;
+# in the source tree the lib lives under backup/lib. Try both.
+_gp_dir="$(dirname "${BASH_SOURCE[0]}")"
+# shellcheck disable=SC2034  # consumed by the sourced lib/log.sh, not in this file
+GITPRESERVER_LOG_COMPONENT="entrypoint"
+if [[ -f "${_gp_dir}/lib/log.sh" ]]; then
+    source "${_gp_dir}/lib/log.sh"
+else
+    source "${_gp_dir}/../backup/lib/log.sh"
+fi
 
 PUID="${PUID:-1000}"
 PGID="${PGID:-1000}"
 
 if ! [[ "${PUID}" =~ ^[0-9]+$ && "${PGID}" =~ ^[0-9]+$ ]]; then
-    log "ERROR: PUID and PGID must be integers (got PUID='${PUID}', PGID='${PGID}')."
+    log_error "ERROR: PUID and PGID must be integers (got PUID='${PUID}', PGID='${PGID}')."
     exit 1
 fi
 
@@ -41,7 +51,7 @@ chown -R "${PUID}:${PGID}" /backups /home/gitpreserver 2>/dev/null || true
 
 if [[ -n "${UMASK:-}" ]]; then
     if ! [[ "${UMASK}" =~ ^[0-7]{3,4}$ ]]; then
-        log "ERROR: UMASK must be a 3- or 4-digit octal value (got '${UMASK}')."
+        log_error "ERROR: UMASK must be a 3- or 4-digit octal value (got '${UMASK}')."
         exit 1
     fi
     umask "${UMASK}"
@@ -57,7 +67,7 @@ case "${MODE}" in
         exec gosu gitpreserver:gitpreserver daemon-start.sh
         ;;
     *)
-        log "ERROR: GITPRESERVER_MODE must be 'oneshot' or 'daemon' (got '${MODE}')."
+        log_error "ERROR: GITPRESERVER_MODE must be 'oneshot' or 'daemon' (got '${MODE}')."
         exit 1
         ;;
 esac

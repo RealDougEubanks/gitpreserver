@@ -1,0 +1,49 @@
+# Trivy ignore policy for GitPreserver
+#
+# List CVE/vulnerability IDs here to suppress accepted findings from the
+# image vulnerability scan (see .github/workflows/lint.yml -> trivy job).
+#
+# Rules:
+#   - One vulnerability ID per line (e.g. CVE-2024-12345).
+#   - Every suppression MUST have an explanatory comment above it stating
+#     WHY it is accepted and WHO/WHEN reviewed it. Undocumented suppressions
+#     are not allowed and should be removed during review.
+#   - Prefer fixing or upgrading over ignoring. Ignore only when the finding
+#     is a false positive, not reachable in this image, or has no available
+#     fix and the risk is formally accepted.
+#   - Optionally add an expiry note so stale suppressions get re-reviewed.
+#
+# Example:
+#   # CVE-2025-0001: false positive, the vulnerable codepath in libfoo is not
+#   # invoked by GitPreserver. Accepted by @dougeubanks on 2026-06-11.
+#   # CVE-2025-0001
+#
+# ---------------------------------------------------------------------------
+# Go stdlib CVEs in upstream-prebuilt binaries (ghorg, supercronic)
+# ---------------------------------------------------------------------------
+# These are reported against the Go standard library compiled INTO the third-
+# party release binaries we bundle (usr/local/bin/ghorg, usr/local/bin/
+# supercronic), not against any code or package we control. We already pin the
+# latest upstream releases (ghorg 1.11.11, supercronic 0.2.46); the only real
+# fix is for those projects to recompile with a patched Go toolchain and cut a
+# new release. gh and rclone report zero — they ship with a current Go.
+#
+# Risk is low for a backup tool: ghorg/supercronic process our own config and
+# git URLs, not untrusted network input. Re-review and prune this list whenever
+# ghorg or supercronic is bumped (Dependabot/manual). Accepted by @dougeubanks
+# on 2026-06-12.
+CVE-2026-25679
+CVE-2026-27137
+CVE-2026-27142
+CVE-2026-32280
+CVE-2026-32281
+CVE-2026-32283
+CVE-2026-33810
+CVE-2026-33811
+CVE-2026-33814
+CVE-2026-39820
+CVE-2026-39823
+CVE-2026-39825
+CVE-2026-39836
+CVE-2026-42499
+CVE-2026-42504

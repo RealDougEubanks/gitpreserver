@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
+source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
 
 STATUS_FILE="${GITPRESERVER_STATUS_FILE:-/tmp/gitpreserver-status.json}"
 CURRENT_STAGE="init"
@@ -37,19 +37,19 @@ trap 'on_error' ERR
 
 CURRENT_STAGE="mirror"
 write_status "running" "Stage 1/3: mirror"
-log "Stage 1/3: mirror"
+log_info "Stage 1/3: mirror"
 mirror.sh
 
 CURRENT_STAGE="metadata"
 write_status "running" "Stage 2/3: metadata"
-log "Stage 2/3: metadata"
+log_info "Stage 2/3: metadata"
 metadata.sh
 
 CURRENT_STAGE="sync"
 write_status "running" "Stage 3/3: sync"
-log "Stage 3/3: sync"
+log_info "Stage 3/3: sync"
 sync.sh
 
 write_status "success" "All stages complete."
-log "All stages complete."
+log_info "All stages complete."
 notify.sh "success" "All stages complete." || true

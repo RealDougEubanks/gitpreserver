@@ -196,6 +196,24 @@ Replace `b2-remote` with your remote name. If this lists your bucket or director
 
 ---
 
-## Multiple destinations (roadmap)
+## Multiple destinations
 
-A future version will support syncing to multiple destinations simultaneously by setting `GITPRESERVER_RCLONE_REMOTE` to a comma-separated list.
+Set `GITPRESERVER_RCLONE_REMOTE` to a comma-separated list to sync the same backup to several remotes in one run:
+
+```bash
+GITPRESERVER_RCLONE_REMOTE=b2-remote,s3-remote,nas-remote
+```
+
+Each remote is synced in turn. If one fails, GitPreserver logs the error, skips it, and keeps going with the rest — a single broken destination does not stop the others. Local retention pruning still runs after the sync loop regardless of any failure. The run exits non-zero if any remote failed, and the list of failed remotes is written to `<backup_dir>/.gitpreserver-failed-remotes` so the notification layer can report it.
+
+### Multiple destinations with encryption
+
+When `GITPRESERVER_ENCRYPT=true`, `GITPRESERVER_CRYPT_REMOTE` must list one crypt remote for every plain remote, in the same order — they are paired by position. The first crypt remote wraps the first plain remote, the second wraps the second, and so on:
+
+```bash
+GITPRESERVER_ENCRYPT=true
+GITPRESERVER_RCLONE_REMOTE=b2-remote,s3-remote
+GITPRESERVER_CRYPT_REMOTE=b2-crypt,s3-crypt   # b2-crypt → b2-remote, s3-crypt → s3-remote
+```
+
+If the two lists have a different number of entries, the run fails before syncing anything. With encryption on, each destination is reached through its paired crypt remote rather than the plain remote directly.

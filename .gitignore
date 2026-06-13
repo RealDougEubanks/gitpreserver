@@ -27,6 +27,13 @@ backups/
 *.log
 logs/
 
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Local agent/tooling config
+.claude/
+
 # Synology build artifacts
 synology/*.spk
 synology/package.tgz

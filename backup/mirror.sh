@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
+source "$(dirname "${BASH_SOURCE[0]}")/lib/log.sh"
 
 : "${GITPRESERVER_TOKEN:?GITPRESERVER_TOKEN is required}"
 : "${GITPRESERVER_USERNAME:?GITPRESERVER_USERNAME is required}"
@@ -9,9 +9,18 @@ log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 # Validate username — accept only characters the four supported hosts allow.
 # Refuses shell metacharacters and path separators before they ever reach ghorg.
 if ! [[ "${GITPRESERVER_USERNAME}" =~ ^[A-Za-z0-9._-]+$ ]]; then
-    log "ERROR: GITPRESERVER_USERNAME contains invalid characters."
+    log_error "ERROR: GITPRESERVER_USERNAME contains invalid characters."
     exit 1
 fi
+
+# Validate a self-hosted base URL before it reaches ghorg --base-url.
+# GITPRESERVER_HOST_URL is operator-supplied but untrusted; require an
+# http(s) scheme followed by a hostname (optionally port and path) and
+# reject anything containing shell metacharacters or whitespace.
+validate_host_url() {
+    local url="$1"
+    [[ "${url}" =~ ^https?://[A-Za-z0-9._-]+(:[0-9]+)?(/[A-Za-z0-9._~/-]*)?$ ]]
+}
 
 BACKUP_DIR="${GITPRESERVER_BACKUP_DIR:-/backups}"
 HOST_TYPE="${GITPRESERVER_HOST_TYPE:-github}"
@@ -24,13 +33,13 @@ SNAPSHOT_PARENT="${BACKUP_DIR}/${BACKUP_DATE}"
 OUTPUT_DIR="${SNAPSHOT_PARENT}/repos"
 
 if [[ "${DRY_RUN}" == "true" ]]; then
-    log "DRY RUN: would mirror ${GITPRESERVER_USERNAME} (${HOST_TYPE}) -> ${OUTPUT_DIR}"
+    log_info "DRY RUN: would mirror ${GITPRESERVER_USERNAME} (${HOST_TYPE}) -> ${OUTPUT_DIR}"
     exit 0
 fi
 
 mkdir -p "${SNAPSHOT_PARENT}"
 
-log "Starting mirror clone: ${GITPRESERVER_USERNAME} (${HOST_TYPE}) -> ${OUTPUT_DIR}"
+log_info "Starting mirror clone: ${GITPRESERVER_USERNAME} (${HOST_TYPE}) -> ${OUTPUT_DIR}"
 
 # ghorg writes to <--path>/<--output-dir>. --output-dir is a *name*, not a
 # path — if you pass an absolute path there, ghorg treats it as a literal
@@ -59,20 +68,28 @@ case "${HOST_TYPE}" in
         export GHORG_GITLAB_TOKEN="${GITPRESERVER_TOKEN}"
         ghorg_args+=(--scm=gitlab)
         if [[ -n "${HOST_URL}" ]]; then
+            if ! validate_host_url "${HOST_URL}"; then
+                log_error "ERROR: GITPRESERVER_HOST_URL is not a valid http(s) URL: '${HOST_URL}'"
+                exit 1
+            fi
             ghorg_args+=(--base-url="${HOST_URL}")
         fi
         ;;
     gitea)
         : "${HOST_URL:?GITPRESERVER_HOST_URL is required for host type 'gitea'}"
+        if ! validate_host_url "${HOST_URL}"; then
+            log_error "ERROR: GITPRESERVER_HOST_URL is not a valid http(s) URL: '${HOST_URL}'"
+            exit 1
+        fi
         export GHORG_GITEA_TOKEN="${GITPRESERVER_TOKEN}"
         ghorg_args+=(--scm=gitea --base-url="${HOST_URL}")
         ;;
     *)
-        log "ERROR: unsupported GITPRESERVER_HOST_TYPE '${HOST_TYPE}'. Valid: github, bitbucket, gitlab, gitea"
+        log_error "ERROR: unsupported GITPRESERVER_HOST_TYPE '${HOST_TYPE}'. Valid: github, bitbucket, gitlab, gitea"
         exit 1
         ;;
 esac
 
 ghorg "${ghorg_args[@]}"
 
-log "Mirror clone complete."
+log_info "Mirror clone complete."

@@ -89,3 +89,113 @@ Each entry uses the format:
 
 **Recorded by:** Claude (feature/phase1-mvp)
 **Date:** 2026-05-21
+
+---
+
+## Web UI token auto-generates if unset and gates both `POST /run` and `GET /config`
+
+**Assumption:** If `GITPRESERVER_WEB_TOKEN` is unset, the web server generates a random token at startup and prints it once to stderr. That token changes on every restart unless the operator sets it explicitly. The bearer token guards `POST /run` and also `GET /config`, since the config view exposes the active environment. A `POST` with no `Content-Length` header returns 411; a request with no `Origin` header is allowed through (token auth still applies), so command-line clients like curl work.
+
+**Why:** A daemon-mode container with a trigger endpoint needs auth out of the box — a blank default would leave the run trigger open to anyone who can reach the port. Auto-generating and logging the token keeps the zero-config path safe while letting operators pin a stable value. Requiring `Content-Length` lets the handler bound the body before reading it. The Origin check is a CSRF defense for browsers; absence of Origin is normal for non-browser clients, so it falls back to token auth rather than rejecting.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-11
+
+---
+
+## Webhook URLs must be https unless insecure delivery is explicitly opted into
+
+**Assumption:** `backup/notify.sh` accepts `https://` webhook URLs unconditionally and `http://` only when `GITPRESERVER_WEBHOOK_ALLOW_INSECURE=true`. Any other scheme is rejected. Webhook delivery failures (timeout, HTTP 4xx/5xx, connection error) are logged as warnings and never fail the backup pipeline.
+
+**Why:** Notification payloads carry the username, host type, and run status; sending them over plain http exposes that in transit. The insecure opt-in exists for LAN ntfy instances where TLS is impractical. Notifications are a side channel — a backup that completed successfully must not be reported as failed because Slack was briefly unreachable, so delivery errors stay non-fatal.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-11
+
+---
+
+## `sync.sh` continues past a failing remote and reports partial failure out of band
+
+**Assumption:** When `GITPRESERVER_RCLONE_REMOTE` lists multiple remotes, `sync.sh` syncs each one independently. A remote that fails is logged and recorded, but the loop continues to the remaining remotes. Local retention pruning always runs afterward, regardless of any sync failure. If any remote failed, the script exits non-zero and writes the comma-separated failed-remote list to `<backup_dir>/.gitpreserver-failed-remotes` for the notification layer to read.
+
+**Why:** A single broken destination (expired key, network blip) should not stop backups reaching the others, and it should not block retention from reclaiming local disk. The exit code lets cron and the daemon flag the run as a partial failure. A status file is the least-coupled way to hand the failed list to `notify.sh`, which runs as a separate process.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-11
+
+---
+
+## Bitbucket credentials are passed via a 0600 `curl --config` temp file
+
+**Assumption:** Bitbucket metadata calls write credentials to a temporary `curl --config` file with mode 0600, removed on `EXIT`, rather than passing them on the command line. A Bitbucket curl exit code of 22 (HTTP 4xx, e.g. a disabled issue tracker) is treated as legitimately empty. Any other non-zero curl exit is a real failure and produces a `.partial` file instead of a complete-looking JSON document.
+
+**Why:** Command-line credentials show up in `/proc/<pid>/cmdline` and `ps`; a 0600 config file keeps them out of the process list and off shared visibility. A disabled tracker returning 4xx is an expected, benign state — writing empty data there is correct — but a transport or auth error must not masquerade as "this resource is empty," so it is marked partial and excluded from the snapshot.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-11
+
+---
+
+## The `gh` request timeout is best-effort; HTTP calls use explicit `--max-time`
+
+**Assumption:** `gh` invocations are wrapped with `timeout`/`gtimeout` (60s) when one is present on the host, and run unbounded otherwise. Direct HTTP calls to Bitbucket and GitLab use curl `--max-time 30`.
+
+**Why:** macOS dev hosts ship without GNU coreutils, so `timeout`/`gtimeout` may be absent; failing the run just because the timeout binary is missing would be worse than running unbounded on those hosts. In production containers coreutils is present, so the wrap takes effect. The curl `--max-time` is built into curl itself, so it applies everywhere.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-11
+
+---
+
+## `GITPRESERVER_SCHEDULE` is validated against a strict cron grammar before use
+
+**Assumption:** Before it is written to the supercronic crontab, `GITPRESERVER_SCHEDULE` must be either five numeric/operator fields or an `@`-shortcut. Day and month names (MON, JAN) are not accepted — use the numeric equivalents.
+
+**Why:** The schedule value reaches a generated crontab and from there a command line, so an unvalidated value is a command-injection vector. A strict numeric grammar is simple to verify and rejects anything unexpected. Name aliases were excluded to keep the validator small and unambiguous; numeric fields cover every schedule.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-11
+
+---
+
+## `GITPRESERVER_HOST_URL` is validated against a strict URL pattern
+
+**Assumption:** `GITPRESERVER_HOST_URL` must match `^https?://host[:port][/path]` before use. Userinfo (`user:pass@`) and query strings are rejected.
+
+**Why:** The host URL is passed to git tooling and HTTP clients. Allowing embedded userinfo or query strings widens the attack surface (credential leakage in logs, request smuggling) for no legitimate gain — a self-hosted host base URL needs only scheme, host, optional port, and optional path.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-11
+
+---
+
+## All scripts emit logfmt to stderr with a shared run_id
+
+**Assumption:** Every script emits structured logfmt lines to stderr in the shape `ts level component run_id msg`. The `run_id` is shared across stages via an exported environment variable so all lines from one pipeline run correlate. Logs were moved from stdout to stderr to comply with CLAUDE.md.
+
+**Why:** stdout is reserved for actual command output and machine-readable results; mixing logs into it corrupts pipes and captured output. A shared `run_id` lets an operator stitch together mirror, metadata, sync, and notify lines from a single run across separate processes.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-11
+
+---
+
+## Dockerfile tool versions are pinned to real, upstream-verified SHA256 checksums
+
+**Assumption:** The Dockerfile pins ghorg 1.11.11, gh 2.94.0, rclone 1.74.3, and supercronic 0.2.46 (latest stable as of 2026-06-12), each with genuine per-architecture SHA256 checksums. rclone/gh/ghorg hashes come from upstream release checksum files (`SHA256SUMS`, `checksums.txt`); supercronic publishes no checksum file, so its two hashes were computed directly from the released `supercronic-linux-amd64`/`-arm64` binaries. When bumping any version, refresh its two SHA256 ARGs from the same sources — the `sha256sum --check --strict` steps enforce them at build time.
+
+**Why:** Pinning a verified checksum is the protection against a tampered or swapped download. The earlier revision shipped `REPLACE_WITH_REAL_SHA256` placeholders because the values could not be obtained offline; they have since been resolved from authoritative upstream sources (reading exact bytes, not transcribed), so the build now succeeds against real artifacts.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-12
+
+---
+
+## Synology distribution targets manual install + Community Package Hub, not SynoCommunity (for now)
+
+**Assumption:** GitPreserver ships its Synology package via the hand-rolled `synology/build-spk.sh` tarball, installed through DSM Package Center → Manual Install, and (optionally) listed on Community Package Hub. A full SynoCommunity submission — which requires porting the package to their `spksrc` build framework — is deliberately deferred.
+
+**Why:** spksrc is a substantial build-system investment (cross-compilation toolchain, framework conventions, review cycle) that is not justified while the package is a thin `docker run` wrapper. Manual install and CPHub deliver the same artifact to users today with far less maintenance burden. This is a reversible call: if user demand for a one-click SynoCommunity listing grows, revisit the spksrc port. Documented here so the absence of a SynoCommunity package is understood as a choice, not an oversight.
+
+**Recorded by:** Claude (immediate-todo sweep)
+**Date:** 2026-06-12

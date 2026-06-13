@@ -72,6 +72,47 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  trivy:
+    name: Image vulnerability scan (Trivy)
+    runs-on: ubuntu-latest
+    # Depends on the build smoke so we only spend scan time on an image that
+    # already builds. The amd64-only load below reuses the same gha buildx
+    # cache populated by docker-build, so this is a near-instant rebuild.
+    needs: docker-build
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build single-arch image for scanning (load to local daemon)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          # Trivy scans a single concrete image; build amd64 only and load it
+          # into the local Docker daemon so the scanner can reference it.
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: gitpreserver:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Run Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: gitpreserver:scan
+          format: table
+          exit-code: "1"
+          # Fail only on vulnerabilities that have a fix available — i.e. ones we
+          # can actually act on by updating a package. A freshly built
+          # debian-slim base always carries dozens of unfixed OS CVEs (jq,
+          # libperl, libpython, expat, …) with no upstream patch; gating on those
+          # would make the scan permanently red with no actionable remedy.
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          # Accepted/suppressed findings are documented in .trivyignore at the
+          # repo root.
+          trivyignores: .trivyignore
+
   gitleaks:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest

@@ -15,7 +15,16 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="${SCRIPT_DIR}/.env"
 LOCK_FILE="${SCRIPT_DIR}/.gitpreserver.lock"
-IMAGE="dougeubanks/gitpreserver:latest"
+
+# Pin the Docker image tag to the installed package version so the container
+# always matches the SPK. The x.y.z part of the Synology version (x.y.z-N) is
+# the upstream release tag. Fall back to a known release if INFO is missing.
+PKG_INFO="/var/packages/gitpreserver/INFO"
+PKG_VERSION="2.0.0-1"
+if [[ -f "${PKG_INFO}" ]]; then
+    PKG_VERSION=$(grep '^version=' "${PKG_INFO}" | cut -d'"' -f2)
+fi
+IMAGE="dougeubanks/gitpreserver:${PKG_VERSION%%-*}"
 
 log() { printf '[gitpreserver] %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*"; }
 
