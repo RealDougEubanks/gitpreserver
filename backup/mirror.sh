@@ -39,6 +39,16 @@ fi
 
 mkdir -p "${SNAPSHOT_PARENT}"
 
+# Trust the backup repos for git operations. They live on a bind-mounted volume
+# and, on a re-run into an existing snapshot, git inside the container may see
+# them as owned by a different user and refuse with "detected dubious ownership"
+# (exit 128) — which ghorg surfaces as "Problem setting remote with credentials".
+# git's safe.directory matches exact repo paths or the special '*'; there is no
+# recursive directory glob, and the per-repo paths vary, so '*' is the only way
+# to cover them. This is the gitpreserver user's own data in a single-tenant
+# container, so trusting all repos is appropriate.
+git config --global --add safe.directory '*' 2>/dev/null || true
+
 log_info "Starting mirror clone: ${GITPRESERVER_USERNAME} (${HOST_TYPE}) -> ${OUTPUT_DIR}"
 
 # ghorg writes to <--path>/<--output-dir>. --output-dir is a *name*, not a
