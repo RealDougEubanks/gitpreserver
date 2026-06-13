@@ -142,12 +142,16 @@ else
 fi
 
 # Read shared_env into an args array on use (works fine when empty under -u).
+# --no-deps: this script runs mirror -> metadata -> sync sequentially itself,
+# so Compose must NOT re-trigger each stage's `depends_on` (which would re-run
+# mirror when we invoke metadata, etc.). The compose-file depends_on ordering
+# is for `docker compose up`; here we own the ordering.
 compose_run_args() {
     local args=()
     while IFS= read -r line; do
         [[ -n "${line}" ]] && args+=("${line}")
     done <<< "${shared_env}"
-    "${COMPOSE[@]}" run --rm "${args[@]+"${args[@]}"}" "$@"
+    "${COMPOSE[@]}" run --rm --no-deps "${args[@]+"${args[@]}"}" "$@"
 }
 
 run_pipeline() {
