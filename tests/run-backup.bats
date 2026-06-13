@@ -44,9 +44,9 @@ SHIM
     export GITPRESERVER_LOCKED=1
     run "${REPO_ROOT}/run-backup.sh"
     [ "${status}" -eq 0 ]
-    grep -q 'compose run --rm mirror' "${BATS_TEST_TMPDIR}/docker-calls"
-    grep -q 'compose run --rm metadata' "${BATS_TEST_TMPDIR}/docker-calls"
-    grep -q 'compose run --rm sync' "${BATS_TEST_TMPDIR}/docker-calls"
+    grep -q 'compose run --rm --no-deps mirror' "${BATS_TEST_TMPDIR}/docker-calls"
+    grep -q 'compose run --rm --no-deps metadata' "${BATS_TEST_TMPDIR}/docker-calls"
+    grep -q 'compose run --rm --no-deps sync' "${BATS_TEST_TMPDIR}/docker-calls"
 }
 
 @test "run-backup.sh: builds image before running stages (regression)" {
@@ -56,8 +56,15 @@ SHIM
     export GITPRESERVER_LOCKED=1
     run "${REPO_ROOT}/run-backup.sh"
     [ "${status}" -eq 0 ]
-    # First docker call must be a build.
-    head -n1 "${BATS_TEST_TMPDIR}/docker-calls" | grep -q 'compose build'
+    # The image build must run before any stage. (The first recorded call is the
+    # compose-command detection probe `compose version`, so assert ordering
+    # rather than "first call".)
+    calls="${BATS_TEST_TMPDIR}/docker-calls"
+    build_line=$(grep -n '^compose build$' "${calls}" | head -n1 | cut -d: -f1)
+    run_line=$(grep -n 'run --rm' "${calls}" | head -n1 | cut -d: -f1)
+    [ -n "${build_line}" ]
+    [ -n "${run_line}" ]
+    [ "${build_line}" -lt "${run_line}" ]
 }
 
 @test "run-backup.sh: --no-sync skips sync service and runs retention prune via mirror" {
@@ -65,10 +72,10 @@ SHIM
     export GITPRESERVER_LOCKED=1
     run "${REPO_ROOT}/run-backup.sh" --no-sync
     [ "${status}" -eq 0 ]
-    grep -q 'compose run --rm mirror' "${BATS_TEST_TMPDIR}/docker-calls"
-    grep -q 'compose run --rm metadata' "${BATS_TEST_TMPDIR}/docker-calls"
+    grep -q 'compose run --rm --no-deps mirror' "${BATS_TEST_TMPDIR}/docker-calls"
+    grep -q 'compose run --rm --no-deps metadata' "${BATS_TEST_TMPDIR}/docker-calls"
     # The sync service itself must NOT be invoked.
-    ! grep -qE 'compose run --rm( -e [^ ]+)* sync$' "${BATS_TEST_TMPDIR}/docker-calls"
+    ! grep -qE 'compose run --rm --no-deps( -e [^ ]+)* sync$' "${BATS_TEST_TMPDIR}/docker-calls"
     # The prune fallback uses --entrypoint sync.sh on the mirror service.
     grep -q -- '--entrypoint sync.sh mirror' "${BATS_TEST_TMPDIR}/docker-calls"
     grep -q -- '-e GITPRESERVER_RCLONE_REMOTE=' "${BATS_TEST_TMPDIR}/docker-calls"
@@ -82,7 +89,9 @@ SHIM
     [ "${status}" -eq 0 ]
     while IFS= read -r line; do
         [[ -z "${line}" ]] && continue
-        [[ "${line}" == compose\ build* ]] && continue
+        # Only stage invocations (compose run) carry the env overrides; skip the
+        # compose-detection and build probes (compose version, build, build --help).
+        [[ "${line}" == *"run --rm"* ]] || continue
         [[ "${line}" == *"GITPRESERVER_DRY_RUN=true"* ]] || {
             echo "Missing DRY_RUN on: ${line}" >&2
             return 1
@@ -98,7 +107,9 @@ SHIM
     # Every compose run line should carry the dry-run env override.
     while IFS= read -r line; do
         [[ -z "${line}" ]] && continue
-        [[ "${line}" == compose\ build* ]] && continue
+        # Only stage invocations (compose run) carry the env overrides; skip the
+        # compose-detection and build probes (compose version, build, build --help).
+        [[ "${line}" == *"run --rm"* ]] || continue
         [[ "${line}" == *"GITPRESERVER_DRY_RUN=true"* ]] || {
             echo "Missing DRY_RUN on: ${line}" >&2
             return 1
