@@ -129,13 +129,25 @@ if [[ "${CLI_DRY_RUN}" == "true" ]]; then
     append_env "GITPRESERVER_DRY_RUN=true"
 fi
 
+# Resolve the Docker Compose command once. Modern installs ship the v2 plugin
+# ("docker compose"); older ones have the v1 standalone binary
+# ("docker-compose"). Stored as an array so it expands as a command prefix.
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE=(docker compose)
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE=(docker-compose)
+else
+    log_error "ERROR: neither 'docker compose' (v2 plugin) nor 'docker-compose' (v1) is available on PATH."
+    exit 1
+fi
+
 # Read shared_env into an args array on use (works fine when empty under -u).
 compose_run_args() {
     local args=()
     while IFS= read -r line; do
         [[ -n "${line}" ]] && args+=("${line}")
     done <<< "${shared_env}"
-    docker compose run --rm "${args[@]+"${args[@]}"}" "$@"
+    "${COMPOSE[@]}" run --rm "${args[@]+"${args[@]}"}" "$@"
 }
 
 run_pipeline() {
@@ -144,15 +156,15 @@ run_pipeline() {
     # Docker's layer cache makes this near-instant when nothing changed;
     # without it, edits to backup/*.sh or docker/Dockerfile silently run
     # the previously-built image and look like the change had no effect.
-    log_info "Ensuring image is up to date (docker compose build)"
+    log_info "Ensuring image is up to date (${COMPOSE[*]} build)"
     # A quiet build keeps scheduled/cron logs clean, but older Docker/Compose
-    # releases don't accept `--quiet` on `compose build` (they error with
+    # releases don't accept `--quiet` on `build` (they error with
     # "unknown flag: --quiet"). Probe for support and fall back to a normal
     # build so the pipeline runs everywhere.
-    if docker compose build --help 2>/dev/null | grep -q -- '--quiet'; then
-        docker compose build --quiet
+    if "${COMPOSE[@]}" build --help 2>/dev/null | grep -q -- '--quiet'; then
+        "${COMPOSE[@]}" build --quiet
     else
-        docker compose build
+        "${COMPOSE[@]}" build
     fi
     compose_run_args mirror
     compose_run_args metadata
