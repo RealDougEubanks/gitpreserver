@@ -9,6 +9,10 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+---
+
+## [2.1.1] — 2026-07-01
+
 ### Fixed
 - `mirror.sh` marks the backup repos as git `safe.directory` before running ghorg. On a re-run into an existing snapshot, git saw the bind-mounted repos as owned by a different user and refused with "detected dubious ownership" (exit 128), which ghorg reported as "Problem setting remote with credentials" for every repo — the update pass cloned nothing and failed the run.
 - `run-backup.sh` runs each compose stage with `--no-deps`. The script already runs mirror → metadata → sync in order, but `docker compose run metadata` was re-triggering the `mirror` dependency (`depends_on: service_completed_successfully`), cloning everything a second time and failing the pipeline on the redundant pass. The compose-file `depends_on` ordering is for `docker compose up`; the wrapper owns its own ordering.
@@ -148,7 +152,8 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 First public release. GitHub account backup (Phase 1).
 
-[Unreleased]: https://github.com/RealDougEubanks/gitpreserver/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/RealDougEubanks/gitpreserver/compare/v2.1.1...HEAD
+[2.1.1]: https://github.com/RealDougEubanks/gitpreserver/compare/v2.1.0...v2.1.1
 [2.1.0]: https://github.com/RealDougEubanks/gitpreserver/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/RealDougEubanks/gitpreserver/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/RealDougEubanks/gitpreserver/compare/v1.0.0...v1.1.0
