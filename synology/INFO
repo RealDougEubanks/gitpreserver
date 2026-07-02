@@ -1,5 +1,5 @@
 package="gitpreserver"
-version="2.1.0-1"
+version="2.1.1-1"
 arch="noarch"
 os_min_ver="7.0-40000"
 displayname="GitPreserver"

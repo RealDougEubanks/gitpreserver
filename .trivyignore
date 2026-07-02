@@ -47,3 +47,37 @@ CVE-2026-39825
 CVE-2026-39836
 CVE-2026-42499
 CVE-2026-42504
+# ---------------------------------------------------------------------------
+# Additional Go module CVEs in upstream-prebuilt binaries (gh, ghorg, supercronic)
+# ---------------------------------------------------------------------------
+# New findings from the 2026-07-01 scan against the same pinned binaries.
+# All are in golang.org/x/crypto, golang.org/x/net, Go stdlib, or
+# github.com/sigstore/rekor compiled into the prebuilt gh/ghorg/supercronic
+# releases we bundle. None of these libraries are called by GitPreserver code
+# directly. Re-review whenever gh, ghorg, or supercronic is bumped.
+# Accepted by @dougeubanks on 2026-07-01.
+#
+# golang.org/x/crypto (ghorg): SSH client DoS conditions — ghorg uses SSH for
+# git operations against our own repos, not as a server.
+CVE-2026-39827
+CVE-2026-39828
+CVE-2026-39829
+CVE-2026-39830
+CVE-2026-39832
+CVE-2026-39835
+CVE-2026-42508
+CVE-2026-46595
+CVE-2026-46597
+# golang.org/x/net (ghorg): HTML parser and IDNA issues — not reachable in
+# a git-cloning workflow.
+CVE-2026-25681
+CVE-2026-27136
+CVE-2026-39821
+CVE-2026-42502
+# Go stdlib crypto/x509 (ghorg, supercronic): DoS in certificate parsing —
+# neither binary is serving TLS connections from untrusted clients.
+CVE-2026-27145
+# github.com/sigstore/rekor (gh): OOM via unbounded gzip decompression in the
+# Sigstore transparency-log client bundled inside the gh CLI binary. GitPreserver
+# does not use gh for signature verification; the rekor client is never invoked.
+CVE-2026-48702
