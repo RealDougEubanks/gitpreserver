@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
       - name: Dependency review
-        uses: actions/dependency-review-action@da24556775bdde18fb6c5b4694a0b82e776f6480 # v4
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           # Fail the check if any dependency change introduces a vulnerability
           # with a CVSS score >= 7 (HIGH or CRITICAL).
