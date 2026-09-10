@@ -196,10 +196,7 @@ EXPOSE 6033
 # stdlib http client (python3 is already a runtime dep) so we don't have to add
 # curl back into the slim runtime layer just for the probe.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD python3 -c "import os,urllib.request,sys; \
-port=os.environ.get('GITPRESERVER_WEB_PORT','6033'); \
-sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:%s/healthz' % port, timeout=3).status==200 else 1)" \
-  || exit 1
+  CMD ["python3", "-c", "import os,urllib.request,sys; port=os.environ.get('GITPRESERVER_WEB_PORT','6033'); sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:%s/healthz' % port, timeout=3).status==200 else 1)"]
 
 WORKDIR /backups
 
