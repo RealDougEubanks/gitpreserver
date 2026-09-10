@@ -109,3 +109,27 @@ CVE-2026-33818
 # if rclone is syncing a maliciously crafted TIFF; not a network-facing issue
 # for a git-backup tool reading our own repos.
 CVE-2026-46602
+# ---------------------------------------------------------------------------
+# Go module CVEs in upstream-prebuilt binaries (ghorg, rclone) — 2026-09-09 scan (2nd pass)
+# ---------------------------------------------------------------------------
+# rclone 1.75.0 fixes CVE-2026-71309 (backend root escape) — Dockerfile upgraded.
+# The findings below are transitive Go module CVEs with no upstream release yet.
+# Accepted by @dougeubanks on 2026-09-09.
+#
+# golang.org/x/crypto (ghorg): additional SSH CVEs beyond those suppressed above.
+CVE-2026-39831
+# golang.org/x/image (rclone): vp8l decoder DoS — rclone image processing, not
+# directly invoked by GitPreserver's sync workflow.
+CVE-2026-46603
+# golang.org/x/mod (ghorg): sumdb/tlog vulnerability — requires a malicious
+# GOSUMDB, not a realistic attack vector in this deployment.
+CVE-2026-56865
+# google.golang.org/grpc (ghorg, rclone): xDS server DoS — neither binary runs
+# an xDS server; the affected codepath is not reachable.
+CVE-2026-84445
+# Go stdlib os.Root (ghorg): symlink following in os.Root API — ghorg uses
+# standard filesystem ops; the os.Root API is not called directly by GitPreserver.
+CVE-2026-39822
+# Go stdlib net/http (rclone): unencrypted HTTP/2 — rclone communicates with
+# configured remotes over HTTPS; this path requires a downgrade attack.
+CVE-2026-56853
