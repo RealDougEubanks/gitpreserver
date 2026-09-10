@@ -14,6 +14,16 @@ name: Auto-tag release
 on:
   push:
     branches: [main]
+    # Only consider version-carrying files. Documentation, CI workflow
+    # changes, and asset-only commits never bump the version and do not
+    # need to trigger a release check.
+    paths:
+      - "synology/INFO"
+      - "CHANGELOG.md"
+      - "backup/**"
+      - "docker/**"
+      - "tests/**"
+      - "webserver.py"
 
 permissions:
   contents: write # required to push the new tag
