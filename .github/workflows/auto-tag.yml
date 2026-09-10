@@ -1,0 +1,57 @@
+name: Auto-tag release
+
+# Runs on every push to main. Reads the version from synology/INFO and creates
+# a semver git tag if one does not already exist for that version. The release
+# workflow (release.yml) picks up the new tag and publishes the Docker image
+# and GitHub Release automatically.
+#
+# The version in synology/INFO follows the format "MAJOR.MINOR.PATCH-N" (e.g.
+# "2.1.1-1"). Only the semver portion (MAJOR.MINOR.PATCH) is used as the tag.
+#
+# Workflow: bump the version in synology/INFO and CHANGELOG.md → open PR →
+# merge to main → this workflow fires → release.yml publishes.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write # required to push the new tag
+
+jobs:
+  tag:
+    name: Create release tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Read version and tag if new
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Extract semver from synology/INFO: version="2.1.1-1" -> 2.1.1
+          raw=$(grep '^version=' synology/INFO | sed 's/version="//;s/".*//')
+          semver="${raw%-*}"
+
+          if ! [[ "$semver" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Unexpected version format: $raw — skipping tag creation."
+            exit 0
+          fi
+
+          tag="v${semver}"
+
+          if git ls-remote --tags origin "refs/tags/${tag}" | grep -q "${tag}"; then
+            echo "Tag ${tag} already exists — nothing to do."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${tag}" -m "Release ${tag}"
+          git push origin "${tag}"
+          echo "Created and pushed tag ${tag}."
