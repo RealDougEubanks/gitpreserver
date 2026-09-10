@@ -133,3 +133,7 @@ CVE-2026-39822
 # Go stdlib net/http (rclone): unencrypted HTTP/2 — rclone communicates with
 # configured remotes over HTTPS; this path requires a downgrade attack.
 CVE-2026-56853
+# Go stdlib html/template (ghorg): XSS via crafted HTML template data — ghorg
+# does not render HTML templates from user input; not reachable in a git-cloning
+# workflow.
+CVE-2026-56858
