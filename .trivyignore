@@ -81,3 +81,79 @@ CVE-2026-27145
 # Sigstore transparency-log client bundled inside the gh CLI binary. GitPreserver
 # does not use gh for signature verification; the rekor client is never invoked.
 CVE-2026-48702
+# ---------------------------------------------------------------------------
+# Go module CVEs in upstream-prebuilt binaries (ghorg, rclone) — 2026-09-09 scan
+# ---------------------------------------------------------------------------
+# rclone 1.74.4 fixes CVE-2026-54572 (symlink arbitrary write) — Dockerfile
+# upgraded. The remaining findings below are transitive Go module CVEs inside
+# the ghorg and rclone binaries with no new upstream release yet.
+# Accepted by @dougeubanks on 2026-09-09.
+#
+# golang.org/x/crypto/ssh (ghorg, rclone): CRITICAL SSH DoS — ghorg uses SSH
+# for git clone/fetch against our own repos; rclone uses it for SFTP remotes.
+# Neither acts as an SSH server accepting untrusted inbound connections.
+CVE-2026-56854
+# golang.org/x/net (ghorg, rclone): DNS message and HTML parsing issues.
+CVE-2026-46600
+# golang.org/x/text (ghorg, rclone): DoS via malformed Unicode input.
+CVE-2026-56852
+# golang.org/x/mod (ghorg): Malicious GOSUMDB could serve arbitrary module zip.
+# Requires the operator to have pointed GOSUMDB at an attacker-controlled server.
+CVE-2026-56864
+# google.golang.org/grpc (ghorg, rclone): gRPC vulnerability in bundled library.
+# GitPreserver does not expose any gRPC endpoints or connect to untrusted gRPC servers.
+CVE-2026-84304
+# Go stdlib encoding/asn1 (ghorg, rclone): DoS in ASN.1 parsing.
+CVE-2026-33818
+# golang.org/x/image (rclone): TIFF decoder size limit absent — only reachable
+# if rclone is syncing a maliciously crafted TIFF; not a network-facing issue
+# for a git-backup tool reading our own repos.
+CVE-2026-46602
+# ---------------------------------------------------------------------------
+# Go module CVEs in upstream-prebuilt binaries (ghorg, rclone) — 2026-09-09 scan (2nd pass)
+# ---------------------------------------------------------------------------
+# rclone 1.75.0 fixes CVE-2026-71309 (backend root escape) — Dockerfile upgraded.
+# The findings below are transitive Go module CVEs with no upstream release yet.
+# Accepted by @dougeubanks on 2026-09-09.
+#
+# golang.org/x/crypto (ghorg): additional SSH CVEs beyond those suppressed above.
+CVE-2026-39831
+# golang.org/x/image (rclone): vp8l decoder DoS — rclone image processing, not
+# directly invoked by GitPreserver's sync workflow.
+CVE-2026-46603
+# golang.org/x/mod (ghorg): sumdb/tlog vulnerability — requires a malicious
+# GOSUMDB, not a realistic attack vector in this deployment.
+CVE-2026-56865
+# google.golang.org/grpc (ghorg, rclone): xDS server DoS — neither binary runs
+# an xDS server; the affected codepath is not reachable.
+CVE-2026-84445
+# Go stdlib os.Root (ghorg): symlink following in os.Root API — ghorg uses
+# standard filesystem ops; the os.Root API is not called directly by GitPreserver.
+CVE-2026-39822
+# Go stdlib net/http (rclone): unencrypted HTTP/2 — rclone communicates with
+# configured remotes over HTTPS; this path requires a downgrade attack.
+CVE-2026-56853
+# Go stdlib html/template (ghorg): XSS via crafted HTML template data — ghorg
+# does not render HTML templates from user input; not reachable in a git-cloning
+# workflow.
+CVE-2026-56858
+# ---------------------------------------------------------------------------
+# Go module CVEs in upstream-prebuilt binaries (ghorg, rclone) — 2026-09-09 scan (3rd pass)
+# ---------------------------------------------------------------------------
+# New Go stdlib and grpc findings from the same binaries, no upstream release yet.
+# Accepted by @dougeubanks on 2026-09-09.
+#
+# google.golang.org/grpc (ghorg, rclone): xDS RBAC and HTTP/2 vulnerabilities,
+# fixed in grpc 1.82.1. GitPreserver does not expose any gRPC endpoints or
+# connect to untrusted gRPC servers; neither the xDS nor RBAC paths are invoked.
+GHSA-hrxh-6v49-42gf
+# Go stdlib encoding/xml (ghorg, rclone): DoS via XML recursion depth — ghorg
+# and rclone do not parse untrusted XML input in a git-backup workflow.
+CVE-2026-56859
+# Go stdlib net/url (ghorg, rclone): DoS via malformed URL — URLs processed
+# by these binaries come from our own configuration, not untrusted user input.
+CVE-2026-56860
+# Go stdlib crypto/tls (ghorg, rclone): DoS via crafted TLS — these binaries
+# connect as TLS clients to known remotes; they do not accept untrusted inbound
+# TLS connections.
+CVE-2026-56862

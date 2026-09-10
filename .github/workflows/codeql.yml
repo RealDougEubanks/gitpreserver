@@ -1,0 +1,40 @@
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly scan on Monday at 03:00 UTC, independent of PR activity.
+    - cron: "0 3 * * 1"
+
+jobs:
+  analyze:
+    name: CodeQL analysis (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python]
+        # bash/shell is not a CodeQL-supported language; ShellCheck covers it.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c20e34f438d671fc35777cc9820dd7adf8252874 # v3.38.0
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@c20e34f438d671fc35777cc9820dd7adf8252874 # v3.38.0
+        with:
+          category: "/language:${{ matrix.language }}"
