@@ -1,0 +1,26 @@
+name: Dependency review
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  dependency-review:
+    name: Dependency review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Dependency review
+        uses: actions/dependency-review-action@da24556775bdde18fb6c5b4694a0b82e776f6480 # v4
+        with:
+          # Fail the check if any dependency change introduces a vulnerability
+          # with a CVSS score >= 7 (HIGH or CRITICAL).
+          fail-on-severity: high
+          # Post a summary comment on the PR listing any new vulnerable deps.
+          comment-summary-in-pr: always
