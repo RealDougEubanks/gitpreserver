@@ -138,7 +138,7 @@ class TestGetConfig(unittest.TestCase):
 class TestRedactUrl(unittest.TestCase):
     def test_keeps_scheme_and_host(self):
         out = webserver._redact_url('https://hooks.slack.com/services/secret')
-        self.assertTrue(out.startswith('https://hooks.slack.com'))
+        self.assertEqual(out, 'https://hooks.slack.com/…[redacted]')
         self.assertNotIn('secret', out)
 
     def test_non_url_value_redacted(self):
