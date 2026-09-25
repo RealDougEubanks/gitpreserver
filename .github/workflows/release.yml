@@ -52,15 +52,20 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Sync Docker Hub repository description
-        # Pushes DOCKER_HUB_README.md (repo root) to the Docker Hub repo page.
-        # Reuses the same Docker Hub credentials used for the image push above.
-        uses: peter-evans/dockerhub-description@1b9a80c056b620d92cedb9d9b5a223409c68ddfa # v5.0.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: dougeubanks/gitpreserver
-          readme-filepath: ./DOCKER_HUB_README.md
+      # The Docker Hub description is NOT synced from CI, deliberately.
+      #
+      # peter-evans/dockerhub-description PATCHes the repository endpoint, and
+      # Docker Hub rejects that for a repo:write token — verified on solarham
+      # run 36191394041, where login and the image push both succeeded and only
+      # this step returned "Forbidden". It needs repo:admin.
+      #
+      # repo:admin means Read, Write AND DELETE on every image repository in
+      # the account, because Docker Hub has no per-repository scoping for
+      # individual accounts. Granting CI the ability to destroy published
+      # images so a README stays in sync is the wrong trade.
+      #
+      # Update the Docker Hub page by hand, or locally with an admin token that
+      # never enters CI. DOCKER_HUB_README.md remains the source text.
 
       - name: Extract release notes from CHANGELOG.md
         id: notes
